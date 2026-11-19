@@ -114,7 +114,7 @@ class OllamaProvider:
 
     def status(self) -> dict[str, Any]:
         base = {"provider_id": self.id.value, "label": "Ollama", "source_kind": SourceKind.local_observed,
-                "is_mock": False, "last_checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+                "is_mock": False, "enabled": self.s.enabled, "last_checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
         try:
             version = self._get("/api/version").get("version")
             models = self.list_models()
@@ -123,6 +123,10 @@ class OllamaProvider:
                     "message": "로컬 Ollama 서버(127.0.0.1:11434)에 연결할 수 없습니다. Ollama 앱을 실행하세요.",
                     "models": [], "version": None}
         gen = [m for m in models if m["can_generate"]]
+        if not self.s.enabled:
+            return {**base, "state": ConnectionState.disabled, "execution_mode": ExecutionMode.unavailable,
+                    "message": f"Ollama {version} 확인됨 — 사용 안 함으로 설정되어 있습니다.", "models": models,
+                    "version": version, "selected_model": None, "reason": "disabled_by_user"}
         selected = self.s.model_id if self.s.model_id in {m["name"] for m in gen} else (gen[0]["name"] if gen else None)
         if not gen:
             msg = "생성 가능한 모델이 없습니다(임베딩 전용 모델만 있음). 예: `ollama pull <모델>` 후 다시 확인하세요." if models \
@@ -208,7 +212,7 @@ class _CliProvider:
         return self.status()
 
     def status(self) -> dict[str, Any]:
-        base = {"provider_id": self.id.value, "label": self.label, "is_mock": False,
+        base = {"provider_id": self.id.value, "label": self.label, "is_mock": False, "enabled": self.s.enabled,
                 "source_kind": SourceKind.local_observed, "last_checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "models": [], "command_configured": bool(self.s.command)}
         cmd = self.resolved_command()

@@ -21,6 +21,11 @@ const STATUS: Record<string, { label: string; symbol: string; tone: string }> = 
   stale: { label: "오래됨", symbol: "⧗", tone: "text-warn border-warn" },
   demo: { label: "DEMO DATA", symbol: "◆", tone: "text-mock border-mock" },
   mock: { label: "MOCK", symbol: "◆", tone: "text-mock border-mock" },
+  review: { label: "검토 권장", symbol: "!", tone: "text-warn border-warn" },
+  not_listed: { label: "공식 미수록", symbol: "×", tone: "text-danger border-danger" },
+  candidate: { label: "후보(판정 아님)", symbol: "?", tone: "text-warn border-warn" },
+  traditional: { label: "전통 해석 · 출처 대조 전", symbol: "◇", tone: "text-foreground border-border" },
+  hangul_name: { label: "한글 이름", symbol: "가", tone: "text-info border-info" },
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

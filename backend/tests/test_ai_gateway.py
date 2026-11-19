@@ -231,3 +231,25 @@ def test_mock_module_still_satisfies_protocols():
         assert isinstance(MockUsageCollector(p.id), UsageCollector)
     assert asyncio.run(MockUsageCollector("claude_code").collect()) == []
     assert isinstance(OllamaProvider(), AIProvider)
+
+
+def test_disabled_ollama_is_never_called(lexicon_session, fake_ollama):
+    f = fake_ollama([GEN], chat_content=json.dumps({"candidates": [{"given_hangul": "하린"}]}))
+    lexicon_session.add(AIProviderSetting(provider_id="ollama", enabled=False))
+    lexicon_session.flush()
+    for provider in ("ollama", "auto"):
+        r = aig.run_ai_generation(lexicon_session, _req(), provider=provider, send_fields=None, consent=False,
+                                  ollama_url=f.url)
+        assert r.provider_used == "rule_based"
+    assert not [x for x in f.requests if x[0] == "/api/chat"]
+    st = OllamaProvider(ProviderSettings(enabled=False, base_url=f.url)).status()
+    assert st["state"] == "disabled" and st["reason"] == "disabled_by_user"
+
+
+def test_disabled_external_provider_needs_no_consent_and_sends_nothing(lexicon_session, fake_cli):
+    lexicon_session.add(AIProviderSetting(provider_id="claude_code", enabled=False, command=fake_cli["command"]))
+    lexicon_session.flush()
+    r = aig.run_ai_generation(lexicon_session, _req(), provider="claude_code", send_fields=None, consent=False,
+                              ollama_url="http://127.0.0.1:9")
+    assert r.provider_used == "rule_based" and {"provider": "claude_code", "result": "disabled"} in r.attempts
+    assert not fake_cli["log"].exists()

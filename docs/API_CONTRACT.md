@@ -54,7 +54,9 @@
 | POST/GET | `/api/v1/projects/{id}/candidates?sort=` | 필요 | 7 | 구현 — 수동 추가 / 종합·항목별 랭킹(`overall, phonetic, meaning, saju, numerology, usability, preference`) |
 | PATCH | `/api/v1/candidates/{id}` | 필요 | 7 | 구현 — `active/excluded/favorite` (제외 해제 = 다시 추천 허용) |
 | POST | `/api/v1/reactions` | 필요 | 7 | 구현 — 좋아요/싫어요/보류·이유·메모. 싫어요 → 제외 |
-| 기타 §18 엔드포인트 | | 필요 | 8~11 | 미구현 |
+| GET | `/api/v1/candidates/{id}` | 필요 | 8 | 구현 — 이름 상세: 전체 분석 + 항목별 점수 근거 + 반응 이력 + 생성 기록(모델·프롬프트·seed) + 템플릿 요약 |
+| POST | `/api/v1/names/compare` | 필요 | 8 | 구현 — 2~10개 이름을 같은 가중치·프로필로 비교 + 쌍별 유사도 |
+| 기타 §18 엔드포인트 | | 필요 | 9~11 | 미구현 |
 
 ### `POST /saju/calculate` 요청
 

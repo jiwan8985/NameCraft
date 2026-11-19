@@ -26,7 +26,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/ai/sessions", title: "AI 세션", summary: "세션별 활동 이력·모델 사용 기록", phase: 11, group: "ai", nav: true },
   { path: "/ai/analytics", title: "AI 분석", summary: "시간대/모델/Provider별 추세·분포", phase: 11, group: "ai", nav: true },
   { path: "/ai/settings", title: "AI 설정", summary: "수집 동의·로컬 디렉터리 접근·알림 임계치·보존 정책", phase: 11, group: "ai", nav: true },
-  { path: "/settings", title: "설정", summary: "학파·가중치·AI·백업·개인정보", phase: 7, group: "system", nav: true },
+  { path: "/settings", title: "설정", summary: "학파·가중치·AI·백업·개인정보", phase: 8, group: "system", nav: true },
   { path: "/admin/data", title: "데이터 관리", summary: "데이터 검증·출처·버전(관리자 전용)", phase: 2, group: "system", nav: true },
 ];
 

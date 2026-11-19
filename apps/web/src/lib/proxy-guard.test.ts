@@ -13,6 +13,9 @@ describe("proxy guard", () => {
     expect(checkProxyRequest("POST", h({}), ["ai", "providers", "ollama", "test"])).toMatchObject({ ok: false, code: "csrf_header_missing" });
     expect(checkProxyRequest("POST", h({ [CSRF_HEADER]: "1" }), ["ai", "providers", "ollama", "test"]).ok).toBe(true);
   });
+  it("allows codepoint paths like hanja/U+6C88", () => {
+    expect(checkProxyRequest("GET", h({}), ["hanja", "U+6C88"]).ok).toBe(true);
+  });
   it("rejects path traversal and odd characters", () => {
     expect(checkProxyRequest("GET", h({}), ["..", "secret"]).ok).toBe(false);
     expect(checkProxyRequest("GET", h({}), ["ai?x=1"]).ok).toBe(false);

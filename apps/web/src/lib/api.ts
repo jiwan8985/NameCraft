@@ -1,6 +1,6 @@
 import { CSRF_HEADER } from "@/lib/proxy-guard";
 
-export type ApiError = { code: string; message: string };
+export type ApiError = { code: string; message: string; details?: Record<string, unknown> };
 export type ApiResult<T> =
   | { ok: true; data: T; warnings: { code: string; message: string }[]; verification_status: string | null }
   | { ok: false; error: ApiError; httpStatus: number };
@@ -25,4 +25,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
   } catch {
     return { ok: false, httpStatus: 0, error: { code: "network_error", message: "네트워크 오류가 발생했습니다." } };
   }
+}
+
+export function postJson<T>(path: string, body: unknown, method: "POST" | "PATCH" = "POST") {
+  return apiFetch<T>(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }

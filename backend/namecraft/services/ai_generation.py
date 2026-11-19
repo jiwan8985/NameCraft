@@ -208,20 +208,23 @@ def run_ai_generation(session: Session, req: GenerateRequest, *, provider: str, 
     if provider == "none":
         order: list[str] = []
     elif provider == "auto":
-        order = [p for p in ("ollama", "claude_code", "antigravity")
-                 if p == "ollama" or settings.get(p, ProviderSettings()).enabled]
+        order = [p for p in ("ollama", "claude_code", "antigravity") if settings.get(p, ProviderSettings()).enabled]
     else:
         if provider not in providers:
             raise ValueError("unknown provider")
         order = fallback_order(session, provider)
 
-    # 외부 구독형으로 보낼 가능성이 있으면 사전 동의 필수 (자동 대체 대상 포함)
-    if any(p in EXTERNAL for p in order) and not consent:
-        raise AIConsentRequired(preview(next(p for p in order if p in EXTERNAL), payload))
+    # 실제로 보낼 수 있는(켜져 있는) 외부 구독형이 경로에 있으면 사전 동의 필수 (자동 대체 대상 포함)
+    sendable = [p for p in order if p in EXTERNAL and settings.get(p, ProviderSettings()).enabled]
+    if sendable and not consent:
+        raise AIConsentRequired(preview(sendable[0], payload))
 
     attempts: list[dict] = []
     for pid in order:
         p = providers[pid]
+        if not settings.get(pid, ProviderSettings()).enabled:
+            attempts.append({"provider": pid, "result": "disabled"})
+            continue
         if pid == "ollama":
             st = p.status()
             model = st.get("selected_model")
@@ -230,9 +233,6 @@ def run_ai_generation(session: Session, req: GenerateRequest, *, provider: str, 
                 continue
             mode = "native_local"
         else:
-            if not settings.get(pid, ProviderSettings()).enabled:
-                attempts.append({"provider": pid, "result": "disabled"})
-                continue
             model, mode = settings[pid].model_id, "supported_cli_task"
         try:
             res = p.generate_text(build_prompt(payload), system=SYSTEM_PROMPT, json_schema=CANDIDATES_SCHEMA,

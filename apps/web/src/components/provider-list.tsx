@@ -16,6 +16,7 @@ export type ProviderStatus = {
   last_checked_at: string | null;
   source_kind: string;
   is_mock: boolean;
+  enabled?: boolean;
   capabilities: Record<string, string>;
 };
 

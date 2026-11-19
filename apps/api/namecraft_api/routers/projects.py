@@ -183,3 +183,39 @@ def post_reaction(body: ReactionIn, db: Session = Depends(get_db)):
     db.commit()
     c = db.get(NameCandidate, body.candidate_id)
     return envelope({"id": r.id, "candidate": _cand(c), "reaction": r.reaction})
+
+
+@router.get("/candidates/{candidate_id}", response_model=Envelope[dict[str, Any]])
+def candidate_detail(candidate_id: str, db: Session = Depends(get_db)):
+    """이름 상세(/names/:id): 전체 분석 + 랭킹 항목별 근거 + 반응 이력 + 생성 기록."""
+    from namecraft.db.models import AIGenerationRecord, NameReaction
+    from namecraft.domain.numerology.core import NumerologyOptions
+    from namecraft.services.name_analysis import analyze_full
+
+    c = db.get(NameCandidate, candidate_id)
+    if c is None:
+        raise NotFound("후보를 찾을 수 없습니다.")
+    p = ps.get_project(db, c.project_id)
+    opts = NumerologyOptions(**{k: v for k, v in (p.analysis_options or {}).items()
+                                if k in ("stroke_system", "single_name_virtual_stroke", "eumryeong_school",
+                                         "numeral_by_meaning")})
+    analysis = analyze_full(db, surname_hangul=p.surname_hangul, surname_hanja=p.surname_hanja,
+                            given_hangul=c.given_hangul, given_hanja=c.given_hanja or None, numerology_options=opts)
+    ranked = rank_names(db, surname_hangul=p.surname_hangul, surname_hanja=p.surname_hanja, names=[_cand(c)],
+                        weights=p.preferences.get("weights"), profile=ps.profile_for(db, p.id),
+                        use_saju=bool(p.preferences.get("use_saju")), numerology_options=opts)["items"][0]
+    reactions = [{"reaction": r.reaction, "reasons": r.reasons, "memo": r.memo, "member": r.member,
+                  "created_at": r.created_at.isoformat()}
+                 for r in db.scalars(select(NameReaction).where(NameReaction.candidate_id == c.id)
+                                     .order_by(NameReaction.created_at))]
+    rec = db.get(AIGenerationRecord, c.generation_record_id) if c.generation_record_id else None
+    generation = None if rec is None else {
+        "provider_id": rec.provider_id, "model_id": rec.model_id, "execution_mode": rec.execution_mode,
+        "prompt_version": rec.prompt_version, "seed": rec.seed, "status": rec.status,
+        "fallback_reason": rec.fallback_reason, "created_at": rec.created_at.isoformat()}
+    from namecraft.services.ai_generation import template_explanation
+
+    return envelope({"candidate": _cand(c), "project": ps.project_dict(p), "analysis": analysis, "ranking": ranked,
+                     "reactions": reactions, "generation": generation,
+                     "explanation": template_explanation(analysis)},
+                    verification_status=VerificationStatus.calculated)

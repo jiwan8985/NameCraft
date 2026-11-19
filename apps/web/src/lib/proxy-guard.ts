@@ -4,7 +4,7 @@
  */
 export const CSRF_HEADER = "x-namecraft-request";
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
-const ALLOWED_PATH = /^[a-z0-9\-_/]+$/;
+const ALLOWED_PATH = /^[A-Za-z0-9\-_/+]+$/; // 예: hanja/U+6C88
 
 export type GuardResult = { ok: true } | { ok: false; status: number; code: string };
 

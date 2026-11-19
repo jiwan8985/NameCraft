@@ -170,3 +170,33 @@ def names_alternative_hanja(body: AlternativeIn, db: Session = Depends(get_db)):
     except ReverseSearchError as e:
         raise AppError(str(e)) from None
     return envelope(data, verification_status=VerificationStatus.unverified, warnings=[GATE_WARNING])
+
+
+# ---------------------------------------------------------------- Phase 8: 비교
+
+from namecraft.services.ranking import RankingError, rank_names  # noqa: E402
+
+
+class CompareIn(BaseModel):
+    surname_hangul: str = Field(min_length=1, max_length=4)
+    surname_hanja: str | None = Field(default=None, max_length=4)
+    names: list[dict] = Field(min_length=2, max_length=10)
+    weights: dict[str, float] | None = None
+
+
+@router.post("/compare", response_model=Envelope[dict[str, Any]])
+def names_compare(body: CompareIn, db: Session = Depends(get_db)):
+    """기획서 §18 POST /names/compare — 같은 기준으로 2~10개 이름 비교 + 쌍별 유사도."""
+    for n in body.names:
+        if not isinstance(n.get("given_hangul"), str) or not n["given_hangul"]:
+            raise AppError("각 항목에 given_hangul 이 필요합니다.")
+    try:
+        ranked = rank_names(db, surname_hangul=body.surname_hangul, surname_hanja=body.surname_hanja,
+                            names=[{"given_hangul": n["given_hangul"], "given_hanja": n.get("given_hanja")}
+                                   for n in body.names], weights=body.weights)
+        sim = compare_similarity(body.names)
+    except (RankingError, NameInputError, ValueError) as e:
+        raise AppError(str(e)) from None
+    return envelope({**ranked, "similarity": sim}, verification_status=VerificationStatus.calculated,
+                    warnings=[{"code": "comparison_basis",
+                               "message": "모든 이름을 같은 가중치·학파 프로필로 비교했습니다. 전통 해석 항목은 상대 평가입니다."}])
