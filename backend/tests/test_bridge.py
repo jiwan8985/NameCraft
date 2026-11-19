@@ -45,7 +45,7 @@ def _req(url, path, body=None, token=None, raw=None):
 def test_bridge_args_match_backend():
     for schema, model in ((None, None), ({"type": "object"}, "m1")):
         assert nb.claude_args(schema, model) == ClaudeCodeProvider().build_args(json_schema=schema, model_id=model)
-        assert nb.agy_args(schema, model, 120) == AntigravityProvider().build_args(json_schema=schema, model_id=model)
+        assert nb.agy_args(schema, model, 120, "P") == AntigravityProvider().build_args(json_schema=schema, model_id=model, prompt="P")
     assert nb.FORBIDDEN_FLAGS == __import__("namecraft.ai_gateway.providers", fromlist=["x"]).FORBIDDEN_FLAGS
 
 

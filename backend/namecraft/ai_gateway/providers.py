@@ -198,6 +198,7 @@ class _CliProvider:
     id: ProviderId
     label: str
     default_command: str
+    prompt_via_stdin = True  # Claude Code: -p 뒤 프롬프트를 표준입력으로. Antigravity: --print=<프롬프트>
 
     def __init__(self, settings: ProviderSettings | None = None):
         self.s = settings or ProviderSettings()
@@ -313,7 +314,7 @@ class _CliProvider:
                 "message": f"{self.label} {ver} — 공식 비대화형 모드로 실행합니다(로그인·구독 한도는 해당 서비스 기준).",
                 "version": ver, "selected_model": self.s.model_id}
 
-    def build_args(self, *, json_schema: dict | None, model_id: str | None) -> list[str]:
+    def build_args(self, *, json_schema: dict | None, model_id: str | None, prompt: str | None = None) -> list[str]:
         raise NotImplementedError
 
     def parse_output(self, stdout: str) -> tuple[str, dict]:
@@ -337,9 +338,11 @@ class _CliProvider:
                                                    "timeout_s": self.s.timeout_s}, timeout=self.s.timeout_s + 15)
             return ProviderResult(text=r.get("text", ""), model_id=r.get("model_id"), duration_ms=r.get("duration_ms") or 0,
                                   tokens_in=r.get("tokens_in"), tokens_out=r.get("tokens_out"), raw_meta={"via": "bridge"})
-        args = self.build_args(json_schema=json_schema, model_id=model_id or self.s.model_id)
+        full_prompt = system + "\n\n" + prompt
+        args = self.build_args(json_schema=json_schema, model_id=model_id or self.s.model_id,
+                               prompt=None if self.prompt_via_stdin else full_prompt)
         t = time.monotonic()
-        p = self._run(args, stdin=system + "\n\n" + prompt, timeout=self.s.timeout_s)
+        p = self._run(args, stdin=full_prompt if self.prompt_via_stdin else None, timeout=self.s.timeout_s)
         dur = int((time.monotonic() - t) * 1000)
         err = (p.stderr or "").lower()
         if p.returncode != 0:
@@ -365,7 +368,7 @@ class ClaudeCodeProvider(_CliProvider):
                 C.explain_name: L.conditional, C.summarize_comparison: L.conditional, C.observe_usage: L.manual,
                 C.observe_quota: L.manual}
 
-    def build_args(self, *, json_schema: dict | None, model_id: str | None) -> list[str]:
+    def build_args(self, *, json_schema: dict | None, model_id: str | None, prompt: str | None = None) -> list[str]:
         args = ["-p", "--output-format", "json", "--tools", "", "--no-session-persistence", "--strict-mcp-config"]
         if model_id:
             args += ["--model", model_id]
@@ -386,14 +389,17 @@ class AntigravityProvider(_CliProvider):
     id = ProviderId.antigravity
     label = "Google Antigravity"
     default_command = "agy"
+    prompt_via_stdin = False  # agy 의 -p/--print 는 값으로 프롬프트를 받는다(--print=<프롬프트>)
 
     async def capabilities(self) -> dict[C, L]:
         return {C.healthcheck: L.supported, C.list_models: L.supported, C.generate_candidates: L.conditional,
                 C.explain_name: L.conditional, C.summarize_comparison: L.conditional, C.observe_usage: L.manual,
                 C.observe_quota: L.manual}
 
-    def build_args(self, *, json_schema: dict | None, model_id: str | None) -> list[str]:
-        args = ["-p", "--output-format", "json", "--mode", "plan", "--sandbox", "--disable-slash-commands",
+    def build_args(self, *, json_schema: dict | None, model_id: str | None, prompt: str | None = None) -> list[str]:
+        # --disable-slash-commands 는 쓰지 않는다: 켜면 '--mode plan(파일 수정 안 함)'이 무시된다는 CLI 경고가 있음.
+        # 프롬프트는 항상 고정 안내문으로 시작하므로 '/' 명령으로 해석될 수 없다.
+        args = [f"--print={prompt or ''}", "--output-format", "json", "--mode", "plan", "--sandbox",
                 "--print-timeout", f"{self.s.timeout_s}s"]
         if json_schema:
             args += ["--json-schema", json.dumps(json_schema, ensure_ascii=False)]
@@ -407,6 +413,9 @@ class AntigravityProvider(_CliProvider):
         except json.JSONDecodeError:
             return stdout, {}
         if isinstance(doc, dict):
+            if isinstance(doc.get("structured_output"), dict):  # --json-schema 로 검증된 구조화 출력
+                return json.dumps(doc["structured_output"], ensure_ascii=False), {"usage": doc.get("usage"),
+                                                                                  "model": doc.get("model")}
             for key in ("result", "response", "text", "output"):
                 if isinstance(doc.get(key), (str, dict, list)):
                     val = doc[key]

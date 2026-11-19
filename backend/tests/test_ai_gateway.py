@@ -73,8 +73,10 @@ def test_cli_args_are_text_only_and_never_forbidden():
     cc = ClaudeCodeProvider().build_args(json_schema=None, model_id="sonnet")
     assert cc[:2] == ["-p", "--output-format"] and "--tools" in cc and cc[cc.index("--tools") + 1] == ""
     assert "--no-session-persistence" in cc and "--strict-mcp-config" in cc
-    ag = AntigravityProvider().build_args(json_schema={"type": "object"}, model_id=None)
+    ag = AntigravityProvider().build_args(json_schema={"type": "object"}, model_id=None, prompt="P \"q\" 한글")
+    assert ag[0] == '--print=P "q" 한글'  # agy 는 -p 값으로 프롬프트를 받음(회귀: 종료 코드 2)
     assert ag[ag.index("--mode") + 1] == "plan" and "--sandbox" in ag and "--json-schema" in ag
+    assert "--disable-slash-commands" not in ag  # 켜면 plan 모드가 무시됨
     for args in (cc, ag):
         assert not set(args) & set(FORBIDDEN_FLAGS)
 
@@ -95,6 +97,18 @@ def test_disabled_cli_never_executes(fake_cli):
     with pytest.raises(ProviderCallError) as e:
         p.generate_text("x", system="y", json_schema=None, seed=None, model_id=None)
     assert e.value.kind == "disabled" and not fake_cli["log"].exists()
+
+
+def test_antigravity_sends_prompt_as_print_value_not_stdin(fake_cli):
+    p = AntigravityProvider(ProviderSettings(enabled=True, command=fake_cli["command"]))
+    p.generate_text("PROMPT", system="SYS", json_schema={"type": "object"}, seed=None, model_id=None)
+    log = json.loads(fake_cli["log"].read_text(encoding="utf-8"))
+    assert log["args"][0] == "--print=SYS\n\nPROMPT" and log["prompt"] == ""
+
+
+def test_antigravity_prefers_structured_output():
+    text, _ = AntigravityProvider().parse_output(json.dumps({"response": "설명이 섞인 응답", "structured_output": {"candidates": []}}))
+    assert json.loads(text) == {"candidates": []}
 
 
 def test_cli_rate_limit_detected(fake_cli, monkeypatch):

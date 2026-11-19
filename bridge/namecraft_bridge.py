@@ -58,8 +58,9 @@ def claude_args(json_schema: dict | None, model_id: str | None) -> list[str]:
     return args + (["--model", model_id] if model_id else [])
 
 
-def agy_args(json_schema: dict | None, model_id: str | None, timeout_s: int) -> list[str]:
-    args = ["-p", "--output-format", "json", "--mode", "plan", "--sandbox", "--disable-slash-commands",
+def agy_args(json_schema: dict | None, model_id: str | None, timeout_s: int, prompt: str = "") -> list[str]:
+    # agy 의 --print 는 값으로 프롬프트를 받는다. --disable-slash-commands 는 plan 모드를 무효화하므로 쓰지 않는다.
+    args = [f"--print={prompt}", "--output-format", "json", "--mode", "plan", "--sandbox",
             "--print-timeout", f"{timeout_s}s"]
     if json_schema:
         args += ["--json-schema", json.dumps(json_schema, ensure_ascii=False)]
@@ -75,6 +76,8 @@ def parse_output(provider: str, stdout: str) -> tuple[str, dict]:
         return stdout, {}
     if provider == "claude_code":
         return str(doc.get("result", "")), {"usage": doc.get("usage")}  # total_cost_usd 등 API 과금 필드는 버림
+    if isinstance(doc.get("structured_output"), dict):
+        return json.dumps(doc["structured_output"], ensure_ascii=False), {"usage": doc.get("usage"), "model": doc.get("model")}
     for key in ("result", "response", "text", "output"):
         if isinstance(doc.get(key), (str, dict, list)):
             v = doc[key]
@@ -116,7 +119,8 @@ class Bridge:
         timeout_s = int(min(max(int(req.get("timeout_s") or 120), 10), 600))
         model_id = req.get("model_id") if isinstance(req.get("model_id"), str) and req.get("model_id") else None
         schema = req.get("json_schema") if isinstance(req.get("json_schema"), dict) else None
-        args = claude_args(schema, model_id) if pid == "claude_code" else agy_args(schema, model_id, timeout_s)
+        full_prompt = system + "\n\n" + prompt
+        args = claude_args(schema, model_id) if pid == "claude_code" else agy_args(schema, model_id, timeout_s, full_prompt)
         full = cmd + args
         if any(f in full for f in FORBIDDEN_FLAGS):
             return 400, {"error": "forbidden_flag"}
@@ -126,8 +130,9 @@ class Bridge:
             t = time.monotonic()
             with tempfile.TemporaryDirectory(prefix="namecraft-bridge-", ignore_cleanup_errors=True) as cwd:
                 try:
-                    p = subprocess.run(full, input=system + "\n\n" + prompt, capture_output=True, text=True,
-                                       encoding="utf-8", timeout=timeout_s, cwd=cwd, env=sanitized_env())
+                    p = subprocess.run(full, input=full_prompt if pid == "claude_code" else None, capture_output=True,
+                                       text=True, encoding="utf-8", timeout=timeout_s, cwd=cwd, env=sanitized_env(),
+                                       **({} if pid == "claude_code" else {"stdin": subprocess.DEVNULL}))
                 except subprocess.TimeoutExpired:
                     return 504, {"error": "timeout"}
                 except OSError:
