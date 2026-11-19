@@ -1,0 +1,15 @@
+id: SRC-DEV-LANG-RULES
+name: "개발자 작성 언어 규칙 데이터 (datasets/rules/caution-words-ko·meaning-caution-en·romanization)"
+url: ""
+authority: developer_curated
+purpose: "부정 연상 후보·한자 뜻 주의 후보·로마자 표기 참고"
+access_method: repository_file
+license: "project-own"
+license_verified_at: 2026-11-19
+terms_url: null
+retrieved_at: 2026-11-19
+effective_date: null
+checksum_sha256: null
+coverage: "소규모 목록 — 포괄적이지 않음"
+status: approved
+notes: "탐지 결과는 검토 권장 후보이며 판정이 아님. 국립국어원 자료 확보 후 보강"

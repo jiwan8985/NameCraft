@@ -19,3 +19,20 @@ def decompose(syllable: str) -> tuple[str, str, str]:
 def initial_consonant(syllable: str, *, plain: bool = True) -> str:
     ini = decompose(syllable)[0]
     return _TENSE_TO_PLAIN.get(ini, ini) if plain else ini
+
+
+def compose(initial: str, medial: str, final: str = "") -> str:
+    return chr(0xAC00 + INITIALS.index(initial) * 588 + MEDIALS.index(medial) * 28 + FINALS.index(final))
+
+
+def jamo_string(text: str) -> str:
+    """음절을 초·중·종성 낱자로 풀어 쓴 문자열 (유사도 계산용)."""
+    out = []
+    for ch in text:
+        try:
+            i, m, f = decompose(ch)
+        except ValueError:
+            out.append(ch)
+            continue
+        out.append(i + m + f)
+    return "".join(out)

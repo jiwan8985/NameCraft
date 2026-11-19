@@ -41,7 +41,9 @@
 | POST | `/api/v1/saju/calculate` | 필요 | 3 | 구현 — 양력/음력(윤달), 정확 시각·시간 범위·시간 미정, 진태양시·자시 옵션, 구간별 4주·오행 개수·변경 기둥·인근 절입 시각. 입력 저장·로그 없음 |
 | GET | `/api/v1/calendar/solar-terms?year=` | 필요 | 3 | 구현 — 해당 연도 24절기 절입 시각(UTC·지역시) — KASI 대조용 |
 | POST | `/api/v1/numerology/calculate` | 필요 | 4 | 구현 — 원형이정 4격(calc)·수리오행·음양 배열 / 81수리·음양 판단·삼원·자원오행(trad, 출처 대조 전) / 음령오행 두 학파 + 일치도. 한글 전용 이름은 획수 항목 `not_applicable`, 획수 모르는 한자는 `unknown` |
-| 기타 §18 엔드포인트 | | 필요 | 5~11 | 미구현 |
+| POST | `/api/v1/names/analyze` | 필요 | 5 | 구현 — 발음(추정·루브릭)·부정 연상 후보·한자 뜻 주의·연령별 참고·로마자 + 수리 분석. 섹션마다 `status`(calculated/subjective/candidate/not_available) |
+| POST | `/api/v1/names/similarity` | 필요 | 5 | 구현 — 후보 쌍별 유사도·중복 (최대 50개) |
+| 기타 §18 엔드포인트 | | 필요 | 6~11 | 미구현 |
 
 ### `POST /saju/calculate` 요청
 

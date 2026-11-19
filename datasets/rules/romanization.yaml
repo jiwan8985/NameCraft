@@ -1,0 +1,72 @@
+# 로마자 표기 참고 데이터 (SRC-DEV-LANG-RULES)
+# - 기본 변환: 문화체육관광부 「국어의 로마자 표기법」(2000) 개정 로마자 표기(RR), 인명은 음운 변화 미반영 원칙.
+# - 여권 영문 성명은 외교부 여권 정책(기존 표기·가족 표기 등)에 따르므로 이 결과는 참고용이다.
+schema_version: 1
+status: developer_curated
+# 성씨 관용 표기 예시 — 실제 사용 빈도 통계가 아닌 흔히 보이는 표기의 예
+surname_customary:
+  김: [Kim]
+  이: [Lee, Yi, Rhee]
+  박: [Park, Pak]
+  최: [Choi, Choe]
+  정: [Jung, Jeong, Chung]
+  강: [Kang]
+  조: [Cho, Jo]
+  윤: [Yoon, Yun]
+  장: [Jang, Chang]
+  임: [Lim, Im]
+  한: [Han]
+  오: [Oh]
+  서: [Seo, Suh]
+  신: [Shin]
+  권: [Kwon]
+  황: [Hwang]
+  안: [Ahn]
+  송: [Song]
+  류: [Ryu, Yoo]
+  유: [Yoo, Yu]
+  홍: [Hong]
+  고: [Ko, Go]
+  문: [Moon, Mun]
+  양: [Yang]
+  손: [Son]
+  배: [Bae]
+  백: [Baek, Paik]
+  허: [Heo, Huh]
+  남: [Nam]
+  심: [Shim, Sim]
+  노: [Noh, Roh]
+  하: [Ha]
+  곽: [Kwak]
+  성: [Sung, Seong]
+  차: [Cha]
+  주: [Joo, Ju]
+  우: [Woo]
+  구: [Koo, Gu]
+  민: [Min]
+  진: [Jin]
+  지: [Ji]
+  엄: [Eom, Um]
+  채: [Chae]
+  원: [Won]
+  천: [Cheon, Chun]
+  방: [Bang]
+  공: [Kong, Gong]
+  현: [Hyun]
+  남궁: [Namgoong, Namgung]
+  황보: [Hwangbo]
+  제갈: [Jegal]
+  선우: [Sunwoo, Seonu]
+  독고: [Dokgo]
+# 영어권에서 오해 소지가 있는 표기 조각 (단어 경계 또는 음절 단독 일치 시 검토 권장)
+english_pitfalls:
+  - { text: dong, note: "영어 속어와 철자 동일" }
+  - { text: suk, note: "영어 'suck'과 발음 유사" }
+  - { text: fuk, note: "영어 비속어와 발음 유사" }
+  - { text: poo, note: "영어 유아어(배설)와 동일" }
+  - { text: pee, note: "영어 유아어(배설)와 동일" }
+  - { text: dung, note: "영어 'dung'(배설물)과 동일" }
+  - { text: die, note: "영어 'die'와 동일" }
+  - { text: kill, note: "영어 'kill'과 동일" }
+  - { text: bum, note: "영어 속어와 동일" }
+  - { text: sin, note: "영어 'sin'(죄)와 동일 — 신(Shin) 관용 표기 고려" }

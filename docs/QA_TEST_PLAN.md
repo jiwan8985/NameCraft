@@ -65,7 +65,7 @@ CI 서비스는 사용하지 않고(기획서 Phase 1 "CI 없는 로컬 테스�
 
 ## 5. 금지 표현 lint (REQ-NF-005)
 
-해설 템플릿·AI 출력 검증에 금지 패턴(예: "반드시 성공", "건강을 보장", "운명이 결정") 탐지 → 경고/차단. 목록은 Phase 5에서 확정.
+해설 템플릿·AI 출력 검증에 금지 패턴(예: "반드시 성공", "건강을 보장", "운명이 결정") 탐지 → 경고/차단. Phase 5 확정: `datasets/rules/forbidden-claims.yaml`, 프로젝트 내 모든 문구를 `test_project_messages_contain_no_forbidden_claims`로 검사. AI 출력 적용은 Phase 7.
 
 ## 6. Phase 완료 보고 형식
 

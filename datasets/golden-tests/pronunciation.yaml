@@ -1,0 +1,25 @@
+# Golden Tests — 표준 발음 추정 (Phase 5)
+# 표준발음법 해설에 실린 대표 예시 단어(definitional)와 이름 사례(formula_derived).
+schema_version: 1
+profile_id: kr-common-2026
+cases:
+  - { id: PRON-001, input: 국민, expected: 궁민, rule: PRON.NASAL, status: definitional }
+  - { id: PRON-002, input: 신라, expected: 실라, rule: PRON.LIQUID, status: definitional }
+  - { id: PRON-003, input: 백로, expected: 뱅노, rule: PRON.NASAL, status: definitional }
+  - { id: PRON-004, input: 침략, expected: 침냑, rule: PRON.NASAL, status: definitional }
+  - { id: PRON-005, input: 굳이, expected: 구지, rule: PRON.PALATAL, status: definitional }
+  - { id: PRON-006, input: 같이, expected: 가치, rule: PRON.PALATAL, status: definitional }
+  - { id: PRON-007, input: 놓아, expected: 노아, rule: PRON.H_DROP, status: definitional }
+  - { id: PRON-008, input: 놓고, expected: 노코, rule: PRON.ASPIRATE, status: definitional }
+  - { id: PRON-009, input: 입학, expected: 이팍, rule: PRON.ASPIRATE, status: definitional }
+  - { id: PRON-010, input: 종로, expected: 종노, rule: PRON.NASAL, status: definitional }
+  - { id: PRON-011, input: 석류, expected: 성뉴, rule: PRON.NASAL, status: definitional }
+  - { id: PRON-012, input: 설날, expected: 설랄, rule: PRON.LIQUID, status: definitional }
+  - { id: PRON-013, input: 밝은, expected: 발근, rule: PRON.LINK, status: definitional }
+  - { id: PRON-014, input: 흙, expected: 흑, rule: PRON.CODA, status: definitional }
+  - { id: PRON-NAME-001, input: 김연아, expected: 기며나, rule: PRON.LINK, status: formula_derived }
+  - { id: PRON-NAME-002, input: 박민준, expected: 방민준, rule: PRON.NASAL, status: formula_derived }
+  - { id: PRON-NAME-003, input: 박지수, expected: 박찌수, rule: PRON.TENSE, status: formula_derived }
+  - { id: PRON-NAME-004, input: 심지아, expected: 심지아, rule: null, status: formula_derived }
+  - { id: PRON-015, input: 희망, expected: 히망, rule: PRON.UI, status: definitional }
+  - { id: PRON-NAME-005, input: 한라희, expected: 할라히, rule: PRON.LIQUID, status: formula_derived }

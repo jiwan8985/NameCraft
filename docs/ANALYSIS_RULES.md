@@ -96,7 +96,20 @@ rules:
 - 한글 전용/순우리말 이름: 한자 기반 규칙(획수·자원오행·수리) → `not_applicable`. 음령오행·발음 분석은 적용.
 - 획수 데이터가 `unverified`인 글자: 계산은 하되 결과 `verification_status: unverified` + warning.
 
-## 5. 평가·랭킹 (Phase 7)
+## 5. 언어·의미 (Phase 5)
+
+| rule_id | 성격 | 정의 |
+|---|---|---|
+| PRON.* | calculated | 표준발음법 주요 규칙: 연음(LINK), 구개음화(PALATAL), ㅎ탈락(H_DROP), 거센소리되기(ASPIRATE), 받침 대표음(CODA), 비음화(NASAL), 유음화(LIQUID), 된소리되기(TENSE), 자음 뒤 ㅢ→ㅣ(UI). 미지원: ㄴ첨가·사잇소리·겹받침 세부 |
+| LANG.PHONETIC.RUBRIC.v0 | subjective | 발음 편의 점수 = 100 − 감점. 표기≠발음 5, 된/거센소리 음절당 3, 받침+자음 충돌당 4, 모음 충돌당 3, 같은 음절 반복 6, 같은 초성 연속당 2 |
+| LANG.CAUTION.KO.v1 | candidate | `datasets/rules/caution-words-ko.yaml` 대조. 이름·전체 이름의 표기·발음형 4가지 검사, 된/거센소리를 예사소리로 바꾼 '유사음' 매칭, `whole` 단어는 이름 전체 일치만. 결과는 검토 권장 후보 |
+| LANG.MEANING.CAUTION.EN.v1 | candidate | Unihan 영어 풀이에 주의 키워드(단어 경계). 한국어 훈·의미 조합은 `not_available` |
+| (휴리스틱) | subjective | 연령별 참고: 귀여운 음절, 같은 음절 반복, 3자 이상, 외자 |
+| RR | calculated | 국어의 로마자 표기법(인명, 음운 변화 미반영, 모음 시작 음절 앞 붙임표). 성씨 관용 표기 예시·영어권 오해 철자 후보 병기 |
+| LANG.SIMILARITY.v1 | calculated | 결합 = 0.45×자모 유사(발음형) + 0.35×음절 겹침(Jaccard) + 0.2×구조(음절 수·받침 패턴). 중복 = 한글 같고 (한자 같거나 둘 다 없음) |
+| LANG.FORBIDDEN_CLAIMS.v1 | gate | `datasets/rules/forbidden-claims.yaml` — 보장·단정·운명 결정 표현 차단. 프로젝트 전체 문구를 테스트로 검사 |
+
+## 6. 평가·랭킹 (Phase 7)
 
 | 항목 | 기본 가중치 | 성격 |
 |---|---:|---|
@@ -111,7 +124,7 @@ rules:
 - 유효성 게이트(`pass/fail/unknown`): 인명용 한자 허용, 하드 조건, 독음 가능성 — **점수와 분리**.
 - 루브릭 상세는 Phase 5·7에서 본 문서에 추가.
 
-## 6. 기본 프로필 (초안)
+## 7. 기본 프로필 (초안)
 
 ```yaml
 profile_id: kr-common-2026

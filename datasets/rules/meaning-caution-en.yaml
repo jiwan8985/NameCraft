@@ -1,0 +1,10 @@
+# 한자 뜻(Unihan kDefinition, 영어) 주의 키워드 (SRC-DEV-LANG-RULES)
+# - 한국어 훈(訓) 데이터가 적재되기 전 임시 규칙. 영어 풀이에 아래 단어가 단어 경계로 나타나면 '의미 주의 후보'.
+# - 같은 글자라도 이름에서 쓰는 뜻이 다를 수 있으므로 판정이 아니라 검토 권장.
+schema_version: 1
+rule_id: LANG.MEANING.CAUTION.EN.v1
+status: developer_curated
+keywords: [death, die, dies, dead, corpse, bury, tomb, grave, funeral, mourn, mourning, ghost, demon, evil, disease,
+           sick, sickness, illness, poison, misfortune, calamity, disaster, sorrow, grief, weep, prison, punish,
+           punishment, crime, thief, rob, kill, slaughter, ruin, defeat, poverty, widow, orphan, blood, decay,
+           wither, curse, shame, disgrace]

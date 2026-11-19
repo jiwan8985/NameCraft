@@ -1,0 +1,33 @@
+# 이름 부정 연상 '후보' 탐지용 주의 단어 (SRC-DEV-LANG-RULES)
+# - 개발자 작성, 소규모. 탐지 결과는 '검토 권장'일 뿐 이름 부적합 판정이 아니다 (기획서 §7 — 단정·과잉 검열 금지).
+# - match: substring(이름/전체 이름의 표기·발음 어디든 포함) | whole(이름 전체가 정확히 같을 때만)
+# - category: profanity(비속어) | insult(놀림·비하) | bodily(신체·배설) | ominous(불길한 연상)
+schema_version: 1
+rule_id: LANG.CAUTION.KO.v1
+status: developer_curated
+words:
+  - { word: 시발, category: profanity, match: substring }
+  - { word: 씨발, category: profanity, match: substring }
+  - { word: 병신, category: profanity, match: substring }
+  - { word: 지랄, category: profanity, match: substring }
+  - { word: 개새, category: profanity, match: substring }
+  - { word: 미친, category: insult, match: substring }
+  - { word: 바보, category: insult, match: substring }
+  - { word: 멍청, category: insult, match: substring }
+  - { word: 찐따, category: insult, match: substring }
+  - { word: 또라이, category: insult, match: substring }
+  - { word: 호구, category: insult, match: substring }
+  - { word: 거지, category: insult, match: substring }
+  - { word: 돼지, category: insult, match: substring }
+  - { word: 변태, category: insult, match: substring }
+  - { word: 고자, category: insult, match: substring }
+  - { word: 똥, category: bodily, match: substring }
+  - { word: 방구, category: bodily, match: substring }
+  - { word: 방귀, category: bodily, match: substring }
+  - { word: 오줌, category: bodily, match: substring }
+  - { word: 변, category: bodily, match: whole }
+  - { word: 사망, category: ominous, match: substring }
+  - { word: 죽음, category: ominous, match: substring }
+  - { word: 망해, category: ominous, match: substring }
+  - { word: 상주, category: ominous, match: whole }
+  - { word: 고아, category: ominous, match: whole }
