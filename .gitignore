@@ -1,0 +1,6 @@
+datasets/raw/
+.venv/
+node_modules/
+__pycache__/
+*.db
+.env

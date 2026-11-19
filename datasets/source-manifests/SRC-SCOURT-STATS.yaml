@@ -1,0 +1,15 @@
+id: SRC-SCOURT-STATS
+name: "대법원 출생신고 이름 통계"
+url: "https://efamily.scourt.go.kr/"
+authority: official_statistics
+purpose: "이름 인기도(공개 상위 범위)"
+access_method: manual_record
+license: null            # 원문 확인 후 기입
+license_verified_at: null
+terms_url: null
+retrieved_at: null
+effective_date: null
+checksum_sha256: null
+coverage: null
+status: candidate
+notes: "상위 N 외 순위·희소성 추정 금지"

@@ -1,0 +1,15 @@
+id: SRC-KRDICT
+name: "국립국어원 한국어기초사전"
+url: "https://krdict.korean.go.kr/"
+authority: official_language
+purpose: "어휘 의미·발음·동음이의어"
+access_method: open_api
+license: null            # 원문 확인 후 기입
+license_verified_at: null
+terms_url: null
+retrieved_at: null
+effective_date: null
+checksum_sha256: null
+coverage: null
+status: license_review
+notes: "CC BY-SA 2.0 KR 여부 원문 확인"

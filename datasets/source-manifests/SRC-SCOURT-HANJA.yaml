@@ -1,0 +1,15 @@
+id: SRC-SCOURT-HANJA
+name: "대법원 인명용 한자표"
+url: "https://efamily.scourt.go.kr/cs/CsBltnWrtList.do?bltnbordId=0000010"
+authority: official_legal
+purpose: "인명용 한자 허용 여부·허용 독음"
+access_method: manual_download
+license: null            # 원문 확인 후 기입
+license_verified_at: null
+terms_url: null
+retrieved_at: null
+effective_date: null
+checksum_sha256: null
+coverage: null
+status: license_review
+notes: "공공저작물 여부·재배포 범위 확인 필요"

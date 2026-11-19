@@ -1,0 +1,88 @@
+# Golden Tests — 수리성명학 공식 (초안, Phase 0)
+# 획수는 '가상의 정수 입력'으로 공식만 검증한다(definitional).
+# 실제 한자 획수 기대값은 Phase 2 한자 DB 검증 후 별도 케이스로 추가 — 그 전에는 status: pending.
+schema_version: 1
+profile_id: kr-common-2026
+cases:
+  - id: NUM-4GYEOK-001
+    desc: "단성 + 2자 이름"
+    input: { surname: [7], given: [10, 5] }
+    expected: { won: 15, hyeong: 17, i: 12, jeong: 22 }
+    status: definitional
+
+  - id: NUM-4GYEOK-002
+    desc: "복성 + 2자 이름 (compound_surname_mode: sum)"
+    input: { surname: [11, 9], given: [4, 8] }
+    expected: { won: 12, hyeong: 24, i: 28, jeong: 32 }
+    status: definitional
+
+  - id: NUM-4GYEOK-003
+    desc: "외자 이름, 가수 없음"
+    input: { surname: [7], given: [12], options: { single_name_virtual_stroke: none } }
+    expected: { won: 12, hyeong: 19, i: 7, jeong: 19 }
+    status: definitional
+
+  - id: NUM-4GYEOK-004
+    desc: "외자 이름, 가수 1"
+    input: { surname: [7], given: [12], options: { single_name_virtual_stroke: plus_one } }
+    expected: { won: 13, hyeong: 19, i: 8, jeong: 19 }
+    status: definitional
+
+  - id: NUM-4GYEOK-005
+    desc: "3자 이름"
+    input: { surname: [7], given: [3, 4, 5] }
+    expected: { won: 12, hyeong: 10, i: 16, jeong: 19 }
+    status: definitional
+
+  - id: NUM-REDUCE-001
+    desc: "81 초과 환원"
+    input: { value: 95 }
+    expected: { reduced: 15 }
+    status: definitional
+  - id: NUM-REDUCE-002
+    input: { value: 81 }
+    expected: { reduced: 81 }
+    status: definitional
+  - id: NUM-REDUCE-003
+    input: { value: 162 }
+    expected: { reduced: 2 }
+    status: definitional
+
+  - id: NUM-ELEM-001
+    desc: "수리오행 끝자리"
+    input: { values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 21, 30] }
+    expected: { elements: [木, 木, 火, 火, 土, 土, 金, 金, 水, 水, 木, 水] }
+    status: definitional
+
+  - id: NUM-YY-001
+    desc: "음양 (홀=양, 짝=음)"
+    input: { strokes: [7, 10, 5] }
+    expected: { pattern: [양, 음, 양] }
+    status: definitional
+
+  - id: NUM-EUM-001
+    desc: "음령오행 학파 차이 — '하은'"
+    input: { hangul: "하은" }
+    expected:
+      modern-common: [土, 土]
+      hunmin-haerye: [水, 水]
+    status: definitional
+
+  - id: NUM-EUM-002
+    desc: "음령오행 학파 차이 — '민'"
+    input: { hangul: "민" }
+    expected:
+      modern-common: [水]
+      hunmin-haerye: [土]
+    status: definitional
+
+  - id: NUM-NA-001
+    desc: "한글 전용 이름(한자 미지정) → 획수·수리 not_applicable"
+    input: { surname_hanja: "沈", given_hangul: "초롱", given_hanja: null }
+    expected: { numerology: not_applicable, eumryeong: applicable }
+    status: definitional
+
+  - id: NUM-REAL-001
+    desc: "실제 한자 원획 기반 (沈 등) — 한자 DB 검증 후 확정"
+    expected: pending
+    status: pending

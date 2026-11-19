@@ -1,0 +1,15 @@
+id: SRC-KLC-LIB
+name: "korean-lunar-calendar (PyPI)"
+url: "https://pypi.org/project/korean-lunar-calendar/"
+authority: implementation
+purpose: "음양력 변환 구현 후보"
+access_method: pypi
+license: null            # 원문 확인 후 기입
+license_verified_at: null
+terms_url: null
+retrieved_at: null
+effective_date: null
+checksum_sha256: null
+coverage: null
+status: candidate
+notes: "Golden Test 통과 시에만 채택"
