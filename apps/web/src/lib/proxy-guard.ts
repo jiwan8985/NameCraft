@@ -4,7 +4,7 @@
  */
 export const CSRF_HEADER = "x-namecraft-request";
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
-const ALLOWED_PATH = /^[A-Za-z0-9\-_/+]+$/; // 예: hanja/U+6C88
+const ALLOWED_PATH = /^[A-Za-z0-9\-_/+.]+$/; // 예: hanja/U+6C88, candidates.csv ("..", "." 세그먼트는 아래에서 차단)
 
 export type GuardResult = { ok: true } | { ok: false; status: number; code: string };
 
@@ -17,7 +17,7 @@ export function checkProxyRequest(method: string, headers: Headers, path: string
     return { ok: false, status: 403, code: "csrf_header_missing" };
   }
   const joined = path.join("/");
-  if (!ALLOWED_PATH.test(joined) || path.some((seg) => seg === ".." || seg === "")) {
+  if (!ALLOWED_PATH.test(joined) || path.some((seg) => seg === ".." || seg === "." || seg === "")) {
     return { ok: false, status: 400, code: "invalid_path" };
   }
   return { ok: true };

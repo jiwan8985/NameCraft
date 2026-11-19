@@ -13,6 +13,11 @@ describe("proxy guard", () => {
     expect(checkProxyRequest("POST", h({}), ["ai", "providers", "ollama", "test"])).toMatchObject({ ok: false, code: "csrf_header_missing" });
     expect(checkProxyRequest("POST", h({ [CSRF_HEADER]: "1" }), ["ai", "providers", "ollama", "test"]).ok).toBe(true);
   });
+  it("allows file-style paths like candidates.csv but not dot segments", () => {
+    expect(checkProxyRequest("GET", h({}), ["projects", "p1", "candidates.csv"]).ok).toBe(true);
+    expect(checkProxyRequest("GET", h({}), ["projects", ".", "x"]).ok).toBe(false);
+    expect(checkProxyRequest("GET", h({}), ["..", "x"]).ok).toBe(false);
+  });
   it("allows codepoint paths like hanja/U+6C88", () => {
     expect(checkProxyRequest("GET", h({}), ["hanja", "U+6C88"]).ok).toBe(true);
   });
