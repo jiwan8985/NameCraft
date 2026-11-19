@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProjectNav } from "@/components/collab/use-project";
 import { ConsentDialog, type ConsentPreview } from "@/components/consent-dialog";
 import { CategoryBars } from "@/components/score";
 import { StatusBadge } from "@/components/status-badge";
@@ -135,6 +136,7 @@ export function Recommendations({ projectId }: { projectId: string }) {
         )}
       </header>
 
+      <ProjectNav projectId={projectId} />
       {warnings.map((w) => <Notice key={w.code} tone="warn">{w.message}</Notice>)}
       {notice && <Notice role="status">{notice}</Notice>}
 

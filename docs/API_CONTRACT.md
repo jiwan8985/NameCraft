@@ -56,7 +56,14 @@
 | POST | `/api/v1/reactions` | 필요 | 7 | 구현 — 좋아요/싫어요/보류·이유·메모. 싫어요 → 제외 |
 | GET | `/api/v1/candidates/{id}` | 필요 | 8 | 구현 — 이름 상세: 전체 분석 + 항목별 점수 근거 + 반응 이력 + 생성 기록(모델·프롬프트·seed) + 템플릿 요약 |
 | POST | `/api/v1/names/compare` | 필요 | 8 | 구현 — 2~10개 이름을 같은 가중치·프로필로 비교 + 쌍별 유사도 |
-| 기타 §18 엔드포인트 | | 필요 | 9~11 | 미구현 |
+| POST | `/api/v1/scenarios/evaluate` | 필요 | 9 | 구현 — 예정일 ±0~7일·후보 예정일(최대 15일)·시간 구간/미정 → 날짜별 구간, 바뀌는 기둥, 오행 최소~최대, (선택) 이름별 해석 점수 범위·민감도. 평균 없음 |
+| POST/GET | `/api/v1/projects/{id}/birth-profiles` | 필요 | 9 | 구현 — 예정/확정 출생정보 추가(이전 버전 `is_current=false`·`superseded_at` 보존) + 시나리오 스냅샷 / 이력 |
+| GET | `/api/v1/projects/{id}/scenario?refresh=`, `/scenario-snapshots/{id}` | 필요 | 9 | 구현 — 현재 시나리오 / 과거 스냅샷 재조회 |
+| POST/GET | `/api/v1/projects/{id}/members`, `/projects/{id}/family` | 필요 | 9 | 구현 — 가족 구성원(별칭) / 공통 선호·의견 차이 요약 |
+| POST | `/api/v1/family/votes` | 필요 | 9 | 구현 — 구성원별 좋아요·싫어요·보류·순위(후보 제외에 영향 없음) |
+| POST/GET | `/api/v1/tournaments`, `/tournaments/{id}`, `/tournaments/{id}/vote`, `/projects/{id}/tournaments` | 필요 | 9 | 구현 — 1:1 토너먼트(부전승, 보류 = 둘 다 진출, 줄지 않으면 보류 종료) |
+| PUT/GET/POST | `/api/v1/projects/{id}/finalists`, `/finalists/board`, `/decision`, `/decisions` | 필요 | 9 | 구현 — 3~5개 결선 보드(같은 기준), 결정(이유 필수·스냅샷), 이전 결정 보존 |
+| 기타 §18 엔드포인트 | | 필요 | 10~11 | 미구현 |
 
 ### `POST /saju/calculate` 요청
 

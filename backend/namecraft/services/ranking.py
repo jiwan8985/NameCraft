@@ -69,7 +69,28 @@ def preference_score(given: str, profile: dict | None) -> float | None:
 
 # ---------------------------------------------------------------- 항목 점수
 
-def _category_scores(a: dict, profile: dict | None, use_saju: bool) -> dict[str, dict]:
+def _saju_category(a: dict, use_saju: bool, scenarios: list[dict] | None) -> dict:
+    from namecraft.domain.calendar import interpretation as interp
+
+    if not use_saju:
+        return {"score": None, "basis": "사주 해석 항목 미사용(기본값) — 설정에서 켤 수 있음"}
+    if not scenarios:
+        return {"score": None, "basis": "출생정보(예정·확정)가 없어 계산하지 않음"}
+    num = a["numerology"]
+    if num["applicability"]["numerology"] != "applicable":
+        return {"score": None, "basis": "한자가 없어 자원오행을 볼 수 없음"}
+    jawon = num["trad"]["jawon"]["elements"][len(a["name"]["surname_hangul"]):]
+    scores = [interp.complement_score(s["element_counts"], jawon)["score"] for s in scenarios]
+    scores = [x for x in scores if x is not None]
+    if not scores:
+        return {"score": None, "basis": "이름 한자에 부수 규칙으로 배정되는 자원오행이 없음"}
+    return {"score": min(scores),
+            "basis": f"{interp.PROFILE_ID}(한 학파의 단순 보완설) — 시나리오 {len(scores)}개 중 최소값, 범위 {min(scores)}~{max(scores)} (평균 아님)",
+            "range": [min(scores), max(scores)], "sensitivity": interp.sensitivity_label(scores),
+            "disclaimer": interp.DISCLAIMER}
+
+
+def _category_scores(a: dict, profile: dict | None, use_saju: bool, scenarios: list[dict] | None = None) -> dict[str, dict]:
     out: dict[str, dict] = {}
     out["phonetic"] = {"score": a["phonetics"]["ease_score"], "basis": "발음 편의 루브릭 v0"}
 
@@ -81,8 +102,7 @@ def _category_scores(a: dict, profile: dict | None, use_saju: bool) -> dict[str,
         out["meaning"] = {"score": 40.0 if has_caution else 70.0,
                           "basis": "영어 풀이 주의 키워드 유무만 반영(한국어 뜻 미적재) — 상한 70"}
 
-    out["saju"] = {"score": None, "basis": "사주 해석 항목 미사용(학파 규칙 미정·출생정보 연동 Phase 9)" if not use_saju
-                   else "사주 해석 프로필 미구현"}
+    out["saju"] = _saju_category(a, use_saju, scenarios)
 
     num = a["numerology"]
     if num["applicability"]["numerology"] == "applicable":
@@ -119,14 +139,15 @@ def official_gate(session, given_hanja: str | None, given_hangul: str) -> str:
 
 def rank_names(session, *, surname_hangul: str, surname_hanja: str | None, names: list[dict],
                weights: dict | None = None, profile: dict | None = None, use_saju: bool = False,
-               numerology_options: NumerologyOptions | None = None) -> dict[str, Any]:
+               numerology_options: NumerologyOptions | None = None,
+               saju_scenarios: list[dict] | None = None) -> dict[str, Any]:
     w = normalize_weights(weights)
     rows = []
     for n in names:
         a = analyze_full(session, surname_hangul=surname_hangul, surname_hanja=surname_hanja,
                          given_hangul=n["given_hangul"], given_hanja=n.get("given_hanja") or None,
                          numerology_options=numerology_options)
-        cats = _category_scores(a, profile, use_saju)
+        cats = _category_scores(a, profile, use_saju, saju_scenarios)
         avail = {k: w[k] for k, v in cats.items() if v["score"] is not None and w[k] > 0}
         tw = sum(avail.values())
         total = round(sum(cats[k]["score"] * wk for k, wk in avail.items()) / tw, 1) if tw else None

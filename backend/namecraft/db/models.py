@@ -292,6 +292,7 @@ class NameReaction(Base):
     reaction: Mapped[str] = mapped_column(String(10))  # like | dislike | hold
     reasons: Mapped[list] = mapped_column(JSON, default=list)
     memo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rank: Mapped[int | None] = mapped_column(nullable=True)  # 가족 평가 순위(1=가장 선호)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -350,3 +351,85 @@ class AIInvocation(Base):
     is_demo: Mapped[bool] = mapped_column(default=False)
 
 
+
+
+# ---------------------------------------------------------------------------
+# Phase 9: 출생정보 버전·시나리오 스냅샷·가족·토너먼트·결선/결정 (기획서 §11, §12)
+# 출생정보는 민감 정보 — 로그 금지, 사용량/AI 기록과 분리.
+# ---------------------------------------------------------------------------
+
+
+class BirthProfile(Base):
+    __tablename__ = "birth_profiles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(10))  # expected | actual
+    calendar: Mapped[str] = mapped_column(String(10), default="solar")
+    date: Mapped[str] = mapped_column(String(10))  # YYYY-MM-DD (입력 달력 기준)
+    is_leap_month: Mapped[bool] = mapped_column(default=False)
+    time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    time_range: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    tz: Mapped[str] = mapped_column(String(64), default="Asia/Seoul")
+    longitude: Mapped[float | None] = mapped_column(nullable=True)
+    true_solar_time: Mapped[str] = mapped_column(String(30), default="off")
+    zi_convention: Mapped[str] = mapped_column(String(30), default="jojasi_next_day")
+    day_window: Mapped[int] = mapped_column(default=0)  # 예정일 ±N일
+    extra_dates: Mapped[list] = mapped_column(JSON, default=list)  # 다른 후보 예정일(양력)
+    is_current: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ScenarioResult(Base):
+    """시나리오 평가 스냅샷 — 출생정보 버전별로 보존(이전 평가 재현)."""
+
+    __tablename__ = "scenario_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    birth_profile_id: Mapped[str] = mapped_column(ForeignKey("birth_profiles.id", ondelete="CASCADE"), index=True)
+    engine_version: Mapped[str] = mapped_column(String(20))
+    rule_version: Mapped[str] = mapped_column(String(20))
+    interpretation_profile: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class FamilyMember(Base):
+    __tablename__ = "family_members"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    alias: Mapped[str] = mapped_column(String(30))  # 표시용 별칭(예: 엄마, 아빠) — 실명 불필요
+    role: Mapped[str] = mapped_column(String(20), default="parent")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Tournament(Base):
+    __tablename__ = "tournaments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    member: Mapped[str] = mapped_column(String(50), default="owner")
+    status: Mapped[str] = mapped_column(String(10), default="active")  # active | done
+    rounds: Mapped[list] = mapped_column(JSON, default=list)  # [[{a, b, choice}]]
+    result: Mapped[dict] = mapped_column(JSON, default=dict)  # {winner, finalists, tied}
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class FinalNameDecision(Base):
+    """결선 보드·최종 결정 기록 — 선택 근거·선택일·비교 스냅샷 보존, 이전 기록 유지."""
+
+    __tablename__ = "final_name_decisions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    finalists: Mapped[list] = mapped_column(JSON, default=list)
+    chosen_candidate_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    birth_profile_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    is_current: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

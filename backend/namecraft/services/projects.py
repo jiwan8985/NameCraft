@@ -123,7 +123,7 @@ def add_reaction(session: Session, candidate_id: str, reaction: str, reasons: li
         raise ValueError("reaction")
     r = NameReaction(candidate_id=c.id, reaction=reaction, reasons=reasons[:10], memo=(memo or None), member=member)
     session.add(r)
-    if reaction == "dislike":
+    if reaction == "dislike" and member == "owner":
         c.status = "excluded"  # 다시 추천하지 않음 (PATCH 로 해제 가능)
     elif reaction == "like" and c.status == "excluded":
         c.status = "active"

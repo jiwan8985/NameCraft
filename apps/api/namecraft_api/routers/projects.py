@@ -99,6 +99,13 @@ def generate_candidates(project_id: str, body: CandidateGenerateIn, request: Req
                     warnings=warnings, verification_status=VerificationStatus.calculated)
 
 
+def _scenarios(db: Session, project_id: str) -> list[dict] | None:
+    from namecraft.services.collab import latest_snapshot
+
+    snap = latest_snapshot(db, project_id)
+    return snap.summary["scenarios"] if snap else None
+
+
 def _cand(c: NameCandidate) -> dict:
     return {"id": c.id, "given_hangul": c.given_hangul, "given_hanja": c.given_hanja or None, "source": c.source,
             "status": c.status, "provider_id": c.provider_id, "ai_reason": c.ai_reason}
@@ -135,7 +142,8 @@ def list_candidates(project_id: str, sort: str = Query("overall"), include_exclu
     try:
         ranked = rank_names(db, surname_hangul=p.surname_hangul, surname_hanja=p.surname_hanja,
                             names=[_cand(c) for c in cands], weights=p.preferences.get("weights"),
-                            profile=ps.profile_for(db, p.id), use_saju=bool(p.preferences.get("use_saju")))
+                            profile=ps.profile_for(db, p.id), use_saju=bool(p.preferences.get("use_saju")),
+                            saju_scenarios=_scenarios(db, p.id))
         items = sort_items(ranked["items"], sort)
     except RankingError as e:
         raise AppError(str(e)) from None
@@ -203,7 +211,8 @@ def candidate_detail(candidate_id: str, db: Session = Depends(get_db)):
                             given_hangul=c.given_hangul, given_hanja=c.given_hanja or None, numerology_options=opts)
     ranked = rank_names(db, surname_hangul=p.surname_hangul, surname_hanja=p.surname_hanja, names=[_cand(c)],
                         weights=p.preferences.get("weights"), profile=ps.profile_for(db, p.id),
-                        use_saju=bool(p.preferences.get("use_saju")), numerology_options=opts)["items"][0]
+                        use_saju=bool(p.preferences.get("use_saju")), numerology_options=opts,
+                        saju_scenarios=_scenarios(db, p.id))["items"][0]
     reactions = [{"reaction": r.reaction, "reasons": r.reasons, "memo": r.memo, "member": r.member,
                   "created_at": r.created_at.isoformat()}
                  for r in db.scalars(select(NameReaction).where(NameReaction.candidate_id == c.id)

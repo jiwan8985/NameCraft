@@ -18,7 +18,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/scenario", title: "시나리오", summary: "예정일/시간 분기 비교·안정성", phase: 9, group: "decision", nav: true },
   { path: "/tournament", title: "토너먼트", summary: "이름 1:1 선호 토너먼트", phase: 9, group: "decision", nav: true },
   { path: "/family", title: "가족 평가", summary: "부모 공동 평가·선호 교집합", phase: 9, group: "decision", nav: true },
-  { path: "/finalize", title: "최종 결정", summary: "3~5개 결선·출생신고 점검", phase: 10, group: "decision", nav: true },
+  { path: "/finalize", title: "최종 결정", summary: "3~5개 결선·출생신고 점검", phase: 9, group: "decision", nav: true },
   { path: "/imports", title: "자료 가져오기", summary: "외부 작명소 자료 가져오기·교차검증", phase: 10, group: "data", nav: true },
   { path: "/reports", title: "보고서", summary: "PDF/CSV/JSON 내보내기", phase: 11, group: "data", nav: true },
   { path: "/ai/providers", title: "AI 연결", summary: "Ollama·Claude Code·Antigravity 연결 상태·지원 기능·모델", phase: 7, group: "ai", nav: true },
