@@ -1,0 +1,124 @@
+# 이름 음절 사전 (SRC-DEV-NAME-SYLLABLES) — 개발자 큐레이션
+# - 공개 이름 통계가 아니며 빈도를 뜻하지 않는다. 생성 후보의 '재료' 목록.
+# - gender: m/f/n 은 흔히 보이는 경향일 뿐 제한 규칙이 아니다(기획서 §4 — 성별은 취향 필터, 제한 아님).
+# - position: first(첫 음절에 흔함) | second(끝 음절에 흔함) | both
+# - tags: traditional(전통적 느낌) | modern(현대적 느낌) — 주관적 분류
+schema_version: 1
+status: developer_curated
+syllables:
+  가: {position: both, gender: n, tags: []}
+  강: {position: first, gender: m, tags: [traditional]}
+  건: {position: both, gender: m, tags: []}
+  경: {position: both, gender: n, tags: [traditional]}
+  고: {position: first, gender: n, tags: []}
+  규: {position: both, gender: m, tags: [traditional]}
+  기: {position: first, gender: n, tags: []}
+  나: {position: both, gender: f, tags: []}
+  다: {position: both, gender: n, tags: [modern]}
+  대: {position: first, gender: m, tags: [traditional]}
+  도: {position: both, gender: m, tags: []}
+  동: {position: first, gender: m, tags: [traditional]}
+  라: {position: both, gender: f, tags: [modern]}
+  로: {position: both, gender: n, tags: [modern]}
+  리: {position: second, gender: f, tags: [modern]}
+  린: {position: second, gender: f, tags: [modern]}
+  미: {position: both, gender: f, tags: []}
+  민: {position: both, gender: n, tags: []}
+  보: {position: first, gender: n, tags: []}
+  비: {position: second, gender: n, tags: []}
+  빈: {position: second, gender: n, tags: []}
+  상: {position: first, gender: m, tags: [traditional]}
+  서: {position: both, gender: n, tags: [modern]}
+  선: {position: both, gender: n, tags: []}
+  성: {position: both, gender: m, tags: [traditional]}
+  세: {position: first, gender: n, tags: []}
+  소: {position: first, gender: f, tags: []}
+  수: {position: both, gender: n, tags: []}
+  승: {position: first, gender: m, tags: []}
+  시: {position: both, gender: n, tags: [modern]}
+  아: {position: both, gender: f, tags: [modern]}
+  연: {position: both, gender: f, tags: []}
+  영: {position: both, gender: n, tags: [traditional]}
+  예: {position: first, gender: f, tags: [modern]}
+  우: {position: both, gender: m, tags: []}
+  원: {position: both, gender: n, tags: []}
+  유: {position: both, gender: n, tags: [modern]}
+  윤: {position: both, gender: n, tags: [modern]}
+  율: {position: second, gender: n, tags: [modern]}
+  은: {position: both, gender: f, tags: []}
+  이: {position: both, gender: n, tags: []}
+  인: {position: second, gender: n, tags: []}
+  재: {position: first, gender: m, tags: []}
+  정: {position: both, gender: n, tags: [traditional]}
+  제: {position: first, gender: m, tags: []}
+  주: {position: both, gender: n, tags: []}
+  준: {position: both, gender: m, tags: []}
+  지: {position: both, gender: n, tags: []}
+  진: {position: both, gender: n, tags: []}
+  찬: {position: second, gender: m, tags: []}
+  채: {position: both, gender: f, tags: [modern]}
+  태: {position: first, gender: m, tags: []}
+  하: {position: both, gender: n, tags: [modern]}
+  한: {position: first, gender: n, tags: []}
+  해: {position: first, gender: n, tags: []}
+  현: {position: both, gender: n, tags: []}
+  혁: {position: second, gender: m, tags: []}
+  혜: {position: both, gender: f, tags: [traditional]}
+  호: {position: second, gender: m, tags: []}
+  후: {position: second, gender: m, tags: [modern]}
+  훈: {position: second, gender: m, tags: []}
+  희: {position: second, gender: f, tags: [traditional]}
+  람: {position: second, gender: n, tags: [modern]}
+  솔: {position: second, gender: n, tags: [modern]}
+  온: {position: second, gender: n, tags: [modern]}
+  결: {position: second, gender: n, tags: [modern]}
+  담: {position: second, gender: n, tags: [modern]}
+  슬: {position: second, gender: f, tags: []}
+  설: {position: both, gender: f, tags: []}
+  효: {position: first, gender: n, tags: [traditional]}
+  석: {position: second, gender: m, tags: [traditional]}
+  철: {position: second, gender: m, tags: [traditional]}
+  용: {position: second, gender: m, tags: [traditional]}
+  환: {position: second, gender: m, tags: []}
+  범: {position: second, gender: m, tags: []}
+  욱: {position: second, gender: m, tags: []}
+  균: {position: second, gender: m, tags: []}
+  웅: {position: second, gender: m, tags: []}
+  란: {position: second, gender: f, tags: []}
+  령: {position: second, gender: f, tags: []}
+  숙: {position: second, gender: f, tags: [traditional]}
+  향: {position: second, gender: f, tags: [traditional]}
+  화: {position: second, gender: f, tags: [traditional]}
+  애: {position: second, gender: f, tags: []}
+# 순우리말·한글 이름 예시 (전체 이름). 어원은 확인하지 않았으므로 뜻을 사실로 표시하지 않는다.
+native_names:
+  - 하늘
+  - 보람
+  - 나래
+  - 초롱
+  - 슬기
+  - 한결
+  - 다온
+  - 이음
+  - 아라
+  - 가람
+  - 누리
+  - 다솜
+  - 한별
+  - 마루
+  - 소담
+  - 해솔
+  - 라온
+  - 하람
+  - 단비
+  - 새봄
+  - 별하
+  - 이랑
+  - 아름
+  - 노을
+  - 나비
+  - 바다
+  - 하나
+  - 온유
+  - 다래
+  - 가온

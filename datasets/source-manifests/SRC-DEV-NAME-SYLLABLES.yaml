@@ -1,0 +1,15 @@
+id: SRC-DEV-NAME-SYLLABLES
+name: "개발자 큐레이션 이름 음절 사전 (datasets/rules/name-syllables.yaml)"
+url: ""
+authority: developer_curated
+purpose: "규칙 기반 이름 후보 생성 재료 (음절·순우리말 이름 예시)"
+access_method: repository_file
+license: "project-own"
+license_verified_at: 2026-11-19
+terms_url: null
+retrieved_at: 2026-11-19
+effective_date: null
+checksum_sha256: null
+coverage: "음절 약 90개 + 한글 이름 30개 — 빈도 통계 아님"
+status: approved
+notes: "성별·스타일 태그는 주관적 경향. 공개 이름 통계 확보 시 대체/보강"

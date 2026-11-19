@@ -43,7 +43,10 @@
 | POST | `/api/v1/numerology/calculate` | 필요 | 4 | 구현 — 원형이정 4격(calc)·수리오행·음양 배열 / 81수리·음양 판단·삼원·자원오행(trad, 출처 대조 전) / 음령오행 두 학파 + 일치도. 한글 전용 이름은 획수 항목 `not_applicable`, 획수 모르는 한자는 `unknown` |
 | POST | `/api/v1/names/analyze` | 필요 | 5 | 구현 — 발음(추정·루브릭)·부정 연상 후보·한자 뜻 주의·연령별 참고·로마자 + 수리 분석. 섹션마다 `status`(calculated/subjective/candidate/not_available) |
 | POST | `/api/v1/names/similarity` | 필요 | 5 | 구현 — 후보 쌍별 유사도·중복 (최대 50개) |
-| 기타 §18 엔드포인트 | | 필요 | 6~11 | 미구현 |
+| POST | `/api/v1/names/generate` | 필요 | 6 | 구현 — 규칙 기반 생성. 결과 `passed`(공식 확인 또는 한글 이름) / `on_hold`(공식 미확인) / `quarantined`(비속어·비하 정확 일치), 통계(하드 필터 제거 수·다양성 건너뜀 등) |
+| POST | `/api/v1/names/reverse-search` | 필요 | 6 | 구현 — 한글 이름 → 음절별 인명용 독음 한자 → 조합별 정렬 점수(구성요소·가중치 공개), `passed/on_hold/rejected` |
+| POST | `/api/v1/names/alternative-hanja` | 필요 | 6 | 구현 — 현재 한자 조합에서 글자별 우려 사항과 점수가 개선되는 대안 |
+| 기타 §18 엔드포인트 | | 필요 | 7~11 | 미구현 |
 
 ### `POST /saju/calculate` 요청
 

@@ -66,3 +66,107 @@ def similarity(body: SimilarityIn):
     except ValueError:
         raise AppError("한글 표기가 올바르지 않습니다.") from None
     return envelope(data, verification_status=VerificationStatus.calculated)
+
+
+# ---------------------------------------------------------------- Phase 6: 생성·역검색
+
+from typing import Literal  # noqa: E402
+
+from namecraft.services.generation import GenerateRequest, GenerationError, generate  # noqa: E402
+from namecraft.services.reverse_search import ReverseSearchError, alternative_hanja, reverse_search  # noqa: E402
+
+GATE_WARNING = {"code": "official_gate_on_hold",
+                "message": "공식 인명용 한자표가 적재되지 않아 한자 조합은 '보류'로 분류됩니다. 출생신고 전 대법원 조회로 확인하세요."}
+
+
+class GenerateIn(BaseModel):
+    surname_hangul: str = Field(min_length=1, max_length=4)
+    surname_hanja: str | None = Field(default=None, max_length=4)
+    sex: Literal["m", "f", "n"] = "n"
+    syllables: int = Field(default=2, ge=1, le=3)
+    name_type: Literal["hanja", "hangul", "any"] = "hanja"
+    include_syllables: list[str] = Field(default_factory=list, max_length=20)
+    exclude_syllables: list[str] = Field(default_factory=list, max_length=50)
+    exclude_initials: list[str] = Field(default_factory=list, max_length=19)
+    exclude_hanja: list[str] = Field(default_factory=list, max_length=50)
+    fixed_syllable: dict[int, str] = Field(default_factory=dict)
+    fixed_hanja: dict[int, str] = Field(default_factory=dict)
+    style_tags: dict[Literal["modern", "traditional", "soft", "bright"], float] = Field(default_factory=dict)
+    liked_examples: list[str] = Field(default_factory=list, max_length=30)
+    exclude_names: list[str] = Field(default_factory=list, max_length=500)
+    count: int = Field(default=30, ge=1, le=200)
+    diversity_threshold: float = Field(default=0.8, gt=0, le=1)
+    use_traditional: bool = True
+
+
+@router.post("/generate", response_model=Envelope[dict[str, Any]])
+def names_generate(body: GenerateIn, db: Session = Depends(get_db)):
+    try:
+        data = generate(db, GenerateRequest(**body.model_dump()))
+    except (GenerationError, ReverseSearchError) as e:
+        raise AppError(str(e)) from None
+    warnings = [{"code": "rule_based_generation",
+                 "message": "규칙 기반 생성 결과입니다. 생성 점수는 후보를 고르기 위한 보조 지표이며 이름의 좋고 나쁨이 아닙니다."}]
+    if data["on_hold"]:
+        warnings.append(GATE_WARNING)
+    if data["quarantined"]:
+        warnings.append({"code": "quarantined", "message": "부정 연상 표현과 정확히 일치한 후보는 별도로 격리했습니다."})
+    return envelope(data, verification_status=VerificationStatus.calculated, warnings=warnings,
+                    calculation_assumptions=["후보 재료: 개발자 큐레이션 음절 사전·한글 이름 예시(빈도 통계 아님)",
+                                             "성별은 선호 가중치일 뿐 제한 조건이 아님",
+                                             "한자 제안: 인명용 독음 힌트(Unihan) 기반 역검색"],
+                    provenance=[{"source_id": "SRC-DEV-NAME-SYLLABLES", "role": "음절 사전"},
+                                {"source_id": "SRC-UNIHAN", "role": "한자 독음·획수"}])
+
+
+class ReverseSearchIn(BaseModel):
+    given_hangul: str = Field(min_length=1, max_length=4)
+    surname_hanja: str | None = Field(default=None, max_length=4)
+    fixed_hanja: dict[int, str] = Field(default_factory=dict)
+    exclude_hanja: list[str] = Field(default_factory=list, max_length=50)
+    weights: dict[Literal["common_hanja", "no_meaning_caution", "luck81", "yinyang_balance"], float] = \
+        Field(default_factory=dict)
+    use_traditional: bool = True
+    include_compat: bool = False
+    limit: int = Field(default=30, ge=1, le=200)
+
+
+@router.post("/reverse-search", response_model=Envelope[dict[str, Any]])
+def names_reverse_search(body: ReverseSearchIn, db: Session = Depends(get_db)):
+    try:
+        data = reverse_search(db, given_hangul=body.given_hangul, surname_hanja=body.surname_hanja,
+                              fixed=body.fixed_hanja, exclude_hanja=body.exclude_hanja, weights=body.weights,
+                              use_traditional=body.use_traditional, include_compat=body.include_compat,
+                              limit=body.limit)
+    except ReverseSearchError as e:
+        raise AppError(str(e)) from None
+    warnings = []
+    if data["impossible_syllables"]:
+        warnings.append({"code": "no_name_hanja",
+                         "message": f"인명용 독음 한자를 찾지 못한 음절: {''.join(data['impossible_syllables'])} — 한글 이름으로 쓸 수 있습니다."})
+    if data.get("counts", {}).get("on_hold"):
+        warnings.append(GATE_WARNING)
+    if body.use_traditional:
+        warnings.append({"code": "traditional_interpretation",
+                         "message": "81수리·음양 항목은 전통 해석 · 출처 대조 전 자료로 정렬에 반영했습니다(가중치 조정 가능)."})
+    return envelope(data, verification_status=VerificationStatus.unverified, warnings=warnings,
+                    calculation_assumptions=["조합 정렬 점수 = 가중 평균(교육용 한자, 뜻 주의 없음, 81수리, 음양 조화). 계산 불가 항목은 제외 후 재정규화"],
+                    provenance=[{"source_id": "SRC-UNIHAN", "role": "독음·획수·영어 풀이"},
+                                {"source_id": "SRC-NUM-TRAD", "role": "81수리 통용 분류", "status": "source_check_pending"}])
+
+
+class AlternativeIn(BaseModel):
+    given_hangul: str = Field(min_length=1, max_length=4)
+    given_hanja: str = Field(min_length=1, max_length=4)
+    surname_hanja: str | None = Field(default=None, max_length=4)
+    use_traditional: bool = True
+
+
+@router.post("/alternative-hanja", response_model=Envelope[dict[str, Any]])
+def names_alternative_hanja(body: AlternativeIn, db: Session = Depends(get_db)):
+    try:
+        data = alternative_hanja(db, given_hangul=body.given_hangul, given_hanja=body.given_hanja,
+                                 surname_hanja=body.surname_hanja, use_traditional=body.use_traditional)
+    except ReverseSearchError as e:
+        raise AppError(str(e)) from None
+    return envelope(data, verification_status=VerificationStatus.unverified, warnings=[GATE_WARNING])
