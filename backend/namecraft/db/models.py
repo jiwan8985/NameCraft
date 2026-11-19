@@ -488,3 +488,74 @@ class CrosscheckResult(Base):
     items: Mapped[list] = mapped_column(JSON, default=list)
     engine_versions: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ---------------------------------------------------------------------------
+# Phase 11: 보고서·AI 사용량 센터·설정 (기획서 §19, §30)
+# 사용량 DB 에는 토큰·쿠키·프롬프트 원문·출생정보를 저장하지 않는다(§30.3).
+# ---------------------------------------------------------------------------
+
+
+class Report(Base):
+    """보고서 요청 기록 + 생성 당시 데이터 스냅샷(재생성·재현용)."""
+
+    __tablename__ = "reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(30))  # project_summary | name_detail | comparison
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    versions: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AIQuotaSnapshot(Base):
+    """구독형 한도 관측값 — 사용자가 공식 화면에서 옮겨 적은 값(manual) 또는 공식 인터페이스(official)."""
+
+    __tablename__ = "ai_quota_snapshots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    provider_id: Mapped[str] = mapped_column(String(30), index=True)
+    account_alias: Mapped[str] = mapped_column(String(50), default="default")
+    model_group: Mapped[str] = mapped_column(String(100), default="all")
+    window_type: Mapped[str] = mapped_column(String(20))  # rolling_5h | weekly | daily | model_group | other
+    used_pct: Mapped[float | None] = mapped_column(nullable=True)
+    remaining_text: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Provider 원본 단위 그대로
+    reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    source_kind: Mapped[str] = mapped_column(String(20), default="manual")  # manual | official | demo
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    is_demo: Mapped[bool] = mapped_column(default=False)
+
+
+class AIAlertRule(Base):
+    __tablename__ = "ai_alert_rules"
+
+    provider_id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    thresholds: Mapped[list] = mapped_column(JSON, default=lambda: [50, 75, 90, 100])
+    local_spike_factor: Mapped[float] = mapped_column(default=2.0)  # 오늘 요청 수 ≥ 7일 평균 × factor
+    enabled: Mapped[bool] = mapped_column(default=True)
+
+
+class AIAlertEvent(Base):
+    __tablename__ = "ai_alert_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    provider_id: Mapped[str] = mapped_column(String(30), index=True)
+    kind: Mapped[str] = mapped_column(String(30))  # quota_threshold | local_spike | reset | collection_failed
+    level: Mapped[str] = mapped_column(String(10))  # info | warn | critical
+    message: Mapped[str] = mapped_column(String(300))
+    source_kind: Mapped[str] = mapped_column(String(20))
+    snapshot_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    is_demo: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    acknowledged: Mapped[bool] = mapped_column(default=False)
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)

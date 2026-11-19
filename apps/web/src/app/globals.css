@@ -63,3 +63,10 @@ body {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* 인쇄(보고서 PDF 저장): 사이드 메뉴 숨김, 흰 배경 */
+@media print {
+  aside, nav[aria-label="주요 메뉴"] { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  main { padding: 0 !important; }
+}

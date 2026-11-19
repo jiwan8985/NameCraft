@@ -175,3 +175,163 @@ def handoff_import(body: HandoffImportIn, db: Session = Depends(get_db)):
     db.commit()
     return envelope({"provider_used": body.provider, "execution_mode": "manual_handoff", "record_id": rec.id, **v},
                     verification_status=VerificationStatus.subjective)
+
+
+# ---------------------------------------------------------------- Phase 11: AI Usage Center (§18, §30)
+
+import datetime as _dt  # noqa: E402
+
+from fastapi import Query  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
+
+from namecraft.services import usage as us  # noqa: E402
+
+USAGE_WARNINGS = [{"code": "no_cross_provider_sum", "message": "Provider 간 수치는 합산하지 않습니다. NameCraft 내부 사용량은 계정 전체 사용량이 아닙니다."}]
+
+
+def _statuses(request: Request, db: Session) -> dict:
+    ps_ = _providers(request, db)
+    return {k: ps_[k].status() for k in ("ollama", "claude_code", "antigravity")}
+
+
+@router.get("/usage/summary", response_model=Envelope[dict[str, Any]])
+def usage_summary(request: Request, include_demo: bool = False, db: Session = Depends(get_db)):
+    us.check_local_spike(db)
+    db.commit()
+    return envelope(us.summary(db, _statuses(request, db), include_demo), warnings=USAGE_WARNINGS,
+                    verification_status=VerificationStatus.calculated)
+
+
+@router.get("/usage/timeseries", response_model=Envelope[dict[str, Any]])
+def usage_timeseries(metric: str = "requests", days: int = 7, include_demo: bool = False,
+                     tz: str = Query("Asia/Seoul", max_length=64), db: Session = Depends(get_db)):
+    return envelope(us.timeseries(db, metric=metric, days=days, tz=tz, include_demo=include_demo),
+                    warnings=USAGE_WARNINGS)
+
+
+@router.get("/usage/heatmap", response_model=Envelope[dict[str, Any]])
+def usage_heatmap(days: int = Query(30, ge=1, le=90), include_demo: bool = False, db: Session = Depends(get_db)):
+    return envelope(us.heatmap(db, days=days, include_demo=include_demo))
+
+
+@router.get("/usage/quotas", response_model=Envelope[dict[str, Any]])
+def usage_quotas(include_demo: bool = False, db: Session = Depends(get_db)):
+    return envelope({p: us.latest_quotas(db, p, include_demo) for p in ("claude_code", "antigravity")} |
+                    {"ollama": {"status": "not_applicable", "label": "로컬 / 한도 없음 / 해당 없음"}})
+
+
+class QuotaIn(BaseModel):
+    provider_id: Literal["claude_code", "antigravity"]
+    window_type: Literal["rolling_5h", "weekly", "daily", "model_group", "other"]
+    model_group: str = Field(default="all", max_length=100)
+    account_alias: str = Field(default="default", max_length=50)
+    used_pct: float | None = Field(default=None, ge=0, le=100)
+    remaining_text: str | None = Field(default=None, max_length=100)
+    reset_at: _dt.datetime | None = None
+    note: str | None = Field(default=None, max_length=200)
+
+
+@router.post("/usage/quotas", response_model=Envelope[dict[str, Any]], status_code=201)
+def add_quota(body: QuotaIn, db: Session = Depends(get_db)):
+    s, events = us.add_quota(db, body.model_dump())
+    db.commit()
+    return envelope({"id": s.id, "alerts": [e.message for e in events]},
+                    warnings=[{"code": "manual_entry", "message": "사용자 입력값으로 저장했습니다(입력 시각 기준)."}])
+
+
+@router.get("/sessions", response_model=Envelope[list[dict[str, Any]]])
+def ai_sessions(provider: str | None = None, status: str | None = None, q: str | None = Query(None, max_length=50),
+                limit: int = Query(100, ge=1, le=500), include_demo: bool = False, db: Session = Depends(get_db)):
+    return envelope(us.sessions(db, provider=provider, status=status, q=q, limit=limit, include_demo=include_demo))
+
+
+@router.post("/usage/sync", response_model=Envelope[dict[str, Any]])
+def usage_sync():
+    """명시적 동기화 — 공식 기계 판독 인터페이스가 확인된 Provider 가 없어 수집하지 않는다(§30.2, §30.6)."""
+    return envelope({"ollama": {"result": "nothing_to_sync", "message": "NameCraft 실행 기록은 호출 시 자동 저장됩니다."},
+                     "claude_code": {"result": "not_supported", "message": "공식 /usage 는 대화형 화면 — 값을 직접 입력하세요."},
+                     "antigravity": {"result": "not_supported", "message": "공식 /usage(/quota) 는 대화형 화면 — 값을 직접 입력하세요."}},
+                    verification_status=VerificationStatus.calculated)
+
+
+@router.get("/usage/export")
+def usage_export(format: Literal["csv", "json"] = "csv", include_demo: bool = False, db: Session = Depends(get_db)):
+    body, media = us.export(db, format, include_demo)
+    return Response(body.encode("utf-8"), media_type=f"{media}; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="ai-usage.{format}"'})
+
+
+@router.get("/alerts", response_model=Envelope[list[dict[str, Any]]])
+def ai_alerts(include_demo: bool = False, db: Session = Depends(get_db)):
+    return envelope(us.alerts(db, include_demo))
+
+
+class AlertRuleIn(BaseModel):
+    provider_id: Literal["ollama", "claude_code", "antigravity"]
+    thresholds: list[int] | None = Field(default=None, max_length=6)
+    local_spike_factor: float | None = Field(default=None, ge=1.1, le=20)
+    enabled: bool | None = None
+
+
+@router.patch("/alert-rules", response_model=Envelope[dict[str, Any]])
+def patch_alert_rule(body: AlertRuleIn, db: Session = Depends(get_db)):
+    from namecraft.db.models import AIAlertRule
+
+    if body.thresholds is not None and any(not 1 <= t <= 100 for t in body.thresholds):
+        raise AppError("임계치는 1~100% 입니다.")
+    row = db.get(AIAlertRule, body.provider_id) or AIAlertRule(provider_id=body.provider_id,
+                                                               thresholds=us.DEFAULT_THRESHOLDS, local_spike_factor=2.0)
+    for k in ("thresholds", "local_spike_factor", "enabled"):
+        if getattr(body, k) is not None:
+            setattr(row, k, sorted(getattr(body, k)) if k == "thresholds" else getattr(body, k))
+    db.add(row)
+    db.commit()
+    return envelope({"provider_id": row.provider_id, "thresholds": row.thresholds,
+                     "local_spike_factor": row.local_spike_factor, "enabled": row.enabled})
+
+
+@router.get("/alert-rules", response_model=Envelope[list[dict[str, Any]]])
+def list_alert_rules(db: Session = Depends(get_db)):
+    rows = [us.rule_for(db, p) for p in us.PROVIDERS]
+    return envelope([{"provider_id": r.provider_id, "thresholds": r.thresholds,
+                      "local_spike_factor": r.local_spike_factor, "enabled": r.enabled} for r in rows])
+
+
+class UsageSettingsIn(BaseModel):
+    retention_days: int | None = Field(default=None, ge=7, le=3650)
+    hide_sensitive: bool | None = None
+
+
+@router.get("/usage/settings", response_model=Envelope[dict[str, Any]])
+def get_usage_settings(db: Session = Depends(get_db)):
+    return envelope({**us.get_setting(db, "usage", {"retention_days": 180, "hide_sensitive": False}),
+                     "local_log_collection": {"status": "not_supported",
+                                              "message": "다른 도구의 로컬 로그·인증 폴더는 읽지 않습니다(§31.2)."}})
+
+
+@router.patch("/usage/settings", response_model=Envelope[dict[str, Any]])
+def patch_usage_settings(body: UsageSettingsIn, db: Session = Depends(get_db)):
+    v = us.set_setting(db, "usage", body.model_dump(exclude_none=True))
+    db.commit()
+    return envelope(v)
+
+
+@router.post("/usage/purge", response_model=Envelope[dict[str, Any]])
+def usage_purge(db: Session = Depends(get_db)):
+    r = us.purge_old(db)
+    db.commit()
+    return envelope(r)
+
+
+@router.post("/usage/demo", response_model=Envelope[dict[str, Any]])
+def usage_demo_load(db: Session = Depends(get_db)):
+    r = us.load_demo(db)
+    db.commit()
+    return envelope(r, warnings=[{"code": "demo_data", "message": "DEMO DATA — 실제 사용량이 아닙니다. 'DEMO 포함'을 켰을 때만 보입니다."}])
+
+
+@router.delete("/usage/demo", response_model=Envelope[dict[str, Any]])
+def usage_demo_clear(db: Session = Depends(get_db)):
+    us.clear_demo(db)
+    db.commit()
+    return envelope({"cleared": True})

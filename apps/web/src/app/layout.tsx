@@ -1,15 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import { GROUP_LABELS, ROUTES, type RouteDef } from "@/lib/routes";
 
 export const metadata: Metadata = {
   title: "NameCraft AI",
   description: "검증 가능한 개인용 AI 작명 플랫폼",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg" },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#1f3d34" };
 
 function Nav() {
   const groups = Object.keys(GROUP_LABELS) as RouteDef["group"][];
@@ -37,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className="min-h-screen antialiased">
+        <ServiceWorkerRegister />
         <div className="mx-auto flex max-w-7xl flex-col md:flex-row">
           <aside className="border-b border-border px-4 py-4 md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
             <Link href="/dashboard" className="mb-4 block text-lg font-bold">
