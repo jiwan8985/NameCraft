@@ -134,7 +134,7 @@ def add_candidate(project_id: str, body: CandidateIn, db: Session = Depends(get_
 
 
 @router.get("/projects/{project_id}/candidates", response_model=Envelope[dict[str, Any]])
-def list_candidates(project_id: str, sort: str = Query("overall"), include_excluded: bool = False,
+def list_candidates(project_id: str, sort: str = Query("recommended"), include_excluded: bool = False,
                     db: Session = Depends(get_db)):
     p = ps.get_project(db, project_id)
     cands = ps.candidates(db, p.id, include_excluded=include_excluded)

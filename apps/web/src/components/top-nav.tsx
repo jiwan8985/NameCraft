@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Settings, Sparkles } from "lucide-react";
+import { Home, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** 주요 메뉴 4개. 나머지 기능은 설정 › 더 많은 기능 */
+/** 주요 메뉴 3개. AI 연결은 이름 짓기 화면에서 바로 고른다(설정 화면 없음). */
 export const PRIMARY_NAV = [
   { href: "/dashboard", label: "홈", icon: Home, match: ["/dashboard"] },
-  { href: "/projects/new", label: "이름 짓기", icon: Sparkles, match: ["/projects", "/compare", "/scenario", "/family", "/tournament", "/finalize", "/names/"] },
+  { href: "/projects/new", label: "이름 짓기", icon: Sparkles, match: ["/projects", "/compare", "/scenario", "/family", "/tournament", "/finalize", "/names/", "/reports"] },
   { href: "/names/analyze", label: "이름 분석", icon: Search, match: ["/names/analyze"] },
-  { href: "/settings", label: "설정", icon: Settings, match: ["/settings", "/ai", "/admin", "/imports", "/reports"] },
 ];
 
 export function TopNav() {

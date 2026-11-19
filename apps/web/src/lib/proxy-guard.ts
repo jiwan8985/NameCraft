@@ -22,3 +22,9 @@ export function checkProxyRequest(method: string, headers: Headers, path: string
   }
   return { ok: true };
 }
+
+/** 오래 걸리는 AI 호출: 후보 생성, AI 생성·설명, 연결 시험 */
+export function isSlowAICall(segments: string[]): boolean {
+  const p = segments.join("/");
+  return /(^|\/)candidates\/generate$/.test(p) || /^ai\/(generate|explain)/.test(p) || /^ai\/providers\/[a-z_]+\/test$/.test(p);
+}

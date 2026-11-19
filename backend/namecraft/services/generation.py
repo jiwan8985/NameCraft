@@ -211,6 +211,7 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
     last_count: dict[str, int] = {}
     skipped_diversity = 0
     skipped_no_hanja = 0
+    hangul_only_count = 0
     hanja_cache: dict[str, bool] = {}
     syl_cache: dict = {}  # 이 요청 안에서만 재사용
     for cand in scored:
@@ -232,6 +233,10 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
 
         cand["trend"] = is_trend(g)
         native = is_hangul_only(g)
+        if native and req.name_type == "any" and hangul_only_count >= max(2, req.count // 4):
+            skipped_diversity += 1  # '상관없음'일 때 한글 이름이 목록을 채우지 않도록 약 1/4 까지만
+            continue
+        hangul_only_count += native
         if req.name_type in ("hanja", "any") and not native:
             ok = all(hanja_cache.setdefault(c, bool(candidates_for_syllable(session, c, limit=1, cache=syl_cache,
                                                                             curated_only=True)))

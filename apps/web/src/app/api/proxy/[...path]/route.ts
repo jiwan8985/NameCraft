@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
-import { checkProxyRequest } from "@/lib/proxy-guard";
+import { checkProxyRequest, isSlowAICall } from "@/lib/proxy-guard";
 
 /** 브라우저 → Next 서버 → FastAPI. 로컬 토큰은 서버에서만 읽고 브라우저로 내보내지 않는다. */
 const API_URL = process.env.NAMECRAFT_API_URL ?? "http://127.0.0.1:8000";
@@ -40,7 +40,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
       // 바이너리 업로드(multipart)를 깨뜨리지 않도록 원본 바이트 그대로 전달
       body: ["GET", "HEAD"].includes(req.method) ? undefined : await req.arrayBuffer(),
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      // AI 생성·연결 시험은 구독형 CLI 가 20~40초(느리면 몇 분) 걸린다 — 15초로 끊으면 '연결 불가'처럼 보였음
+      signal: AbortSignal.timeout(isSlowAICall(segments) ? 600_000 : 30_000),
     });
     const passthrough = ["content-type", "content-disposition", "x-content-type-options", "content-security-policy"];
     const headers = new Headers();
@@ -56,3 +57,4 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
 }
 
 export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };
+

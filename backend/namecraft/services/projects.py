@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import literal_column, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -72,7 +72,8 @@ def candidates(session: Session, project_id: str, *, include_excluded: bool = Fa
     q = select(NameCandidate).where(NameCandidate.project_id == project_id)
     if not include_excluded:
         q = q.where(NameCandidate.status != "excluded")
-    return list(session.scalars(q.order_by(NameCandidate.created_at, NameCandidate.given_hangul)))
+    # 최근에 받은 묶음 먼저, 같은 묶음 안에서는 저장된(=추천된) 순서
+    return list(session.scalars(q.order_by(NameCandidate.created_at.desc(), literal_column("name_candidates.rowid"))))
 
 
 def excluded_names(session: Session, project_id: str) -> list[str]:

@@ -26,3 +26,14 @@ describe("proxy guard", () => {
     expect(checkProxyRequest("GET", h({}), ["ai?x=1"]).ok).toBe(false);
   });
 });
+
+describe("isSlowAICall", () => {
+  it("gives AI generation and live tests a long timeout, everything else short", async () => {
+    const { isSlowAICall } = await import("./proxy-guard");
+    expect(isSlowAICall(["projects", "abc", "candidates", "generate"])).toBe(true);
+    expect(isSlowAICall(["ai", "providers", "claude_code", "test"])).toBe(true);
+    expect(isSlowAICall(["ai", "generate"])).toBe(true);
+    expect(isSlowAICall(["projects", "abc", "candidates"])).toBe(false);
+    expect(isSlowAICall(["ai", "providers"])).toBe(false);
+  });
+});

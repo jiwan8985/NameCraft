@@ -137,6 +137,25 @@ def official_gate(session, given_hanja: str | None, given_hangul: str) -> str:
     return "pass" if all(s == OFFICIAL_VERIFIED for s in statuses) else "unknown"
 
 
+def name_labels(given: str, hanja: str | None, ai_reason: str | None) -> dict[str, Any]:
+    """화면 표시용: 한자별 훈음(좋은 뜻 큐레이션 → 없으면 AI 설명 속 '瑞 상서로울 서' 표기), 요즘 인기·순우리말 표시."""
+    import re
+
+    from namecraft.services.name_dictionary import given_names, is_trend, meaning_ko
+
+    meanings = None
+    if hanja and len(hanja) == len(given):
+        meanings = []
+        for ch, syl in zip(hanja, given):
+            m = meaning_ko(ch, syl)
+            if not m and ai_reason:
+                hit = re.search(re.escape(ch) + r"\s*[(\[]?\s*([가-힣]{1,6}(?:\s[가-힣]{1,6})?\s" + syl + r")", ai_reason)
+                m = hit.group(1) if hit else None
+            meanings.append({"char": ch, "meaning": m})
+    info = given_names().get(given, {})
+    return {"hanja_meanings": meanings, "trend": is_trend(given), "native": info.get("style") == "native"}
+
+
 def rank_names(session, *, surname_hangul: str, surname_hanja: str | None, names: list[dict],
                weights: dict | None = None, profile: dict | None = None, use_saju: bool = False,
                numerology_options: NumerologyOptions | None = None,
@@ -153,8 +172,9 @@ def rank_names(session, *, surname_hangul: str, surname_hanja: str | None, names
         total = round(sum(cats[k]["score"] * wk for k, wk in avail.items()) / tw, 1) if tw else None
         missing = [k for k in cats if cats[k]["score"] is None and w[k] > 0]
         rows.append({
-            **{k: n.get(k) for k in ("id", "given_hangul", "given_hanja", "source", "status")},
+            **{k: n.get(k) for k in ("id", "given_hangul", "given_hanja", "source", "status", "provider_id")},
             "full_hangul": a["name"]["full_hangul"],
+            **name_labels(n["given_hangul"], n.get("given_hanja") or None, n.get("ai_reason")),
             "gate": {"official_hanja": official_gate(session, n.get("given_hanja") or None, n["given_hangul"]),
                      "caution": "review" if a["caution"]["candidates"] else "none"},
             "overall": total,
@@ -172,12 +192,16 @@ def rank_names(session, *, surname_hangul: str, surname_hanja: str | None, names
     return {"ranking_version": RANKING_VERSION, "weights_normalized": w, "items": rows}
 
 
-SORT_KEYS = {"overall", *DEFAULT_WEIGHTS}
+SORT_KEYS = {"recommended", "overall", *DEFAULT_WEIGHTS}
 
 
 def sort_items(items: list[dict], by: str) -> list[dict]:
+    """recommended: 받은 순서 그대로(최근에 받은 묶음 먼저, 묶음 안에서는 AI·이름 사전이 추천한 순서).
+    점수순(overall)은 한글 이름처럼 계산할 항목이 적은 이름이 N/A 재정규화로 위로 몰릴 수 있어 기본값이 아니다."""
     if by not in SORT_KEYS:
         raise RankingError(f"정렬 기준: {sorted(SORT_KEYS)}")
+    if by == "recommended":
+        return list(items)
     def key(r):
         v = r["overall"] if by == "overall" else r["categories"][by]["score"]
         return (v is None, -(v or 0), r["given_hangul"], r.get("given_hanja") or "")

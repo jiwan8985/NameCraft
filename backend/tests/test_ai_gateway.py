@@ -153,11 +153,12 @@ def test_validation_rejects_bad_ai_output(lexicon_session):
     ]}
     v = aig.validate_candidates(lexicon_session, doc, _req())
     acc = {a["given_hangul"]: a for a in v["accepted"]}
-    assert set(acc) == {"지아", "수아", "지수"}
+    assert set(acc) == {"지아", "수아", "지수", "지우"}
+    assert acc["지우"]["given_hanja"] is None and acc["지우"]["hanja_dropped"] == "hanja_reading_unverified"  # 이름은 살리고 한자만 뺌
     assert acc["지수"]["reason"] is None and acc["지수"]["reason_removed_why"] == "forbidden_claim"
     assert acc["지아"]["reason"] == "부드럽습니다"
     reasons = {r["reason"] for r in v["rejected"]}
-    assert {"not_hangul", "duplicate", "syllable_count", "hanja_reading_unverified", "caution_exact"} <= reasons
+    assert {"not_hangul", "duplicate", "syllable_count", "caution_exact"} <= reasons
 
 
 def test_ai_calculation_claims_are_stripped(lexicon_session):

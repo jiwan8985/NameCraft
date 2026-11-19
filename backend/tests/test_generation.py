@@ -166,3 +166,12 @@ def test_any_mode_never_drops_candidates_silently(lexicon_session):
     r = generate(lexicon_session, GenerateRequest(surname_hangul="심", surname_hanja="沈", count=10, name_type="any"))
     assert r["stats"]["returned"] == len(r["passed"]) + len(r["on_hold"]) == 10
     assert any(c["official_gate"] == "not_required" and c["hanja_possible"] is False for c in r["passed"])
+
+
+def test_any_type_keeps_hangul_only_names_to_about_a_quarter(lexicon_session):
+    from namecraft.services.name_dictionary import is_hangul_only
+
+    r = generate(lexicon_session, GenerateRequest(surname_hangul="심", sex="f", name_type="any", count=20,
+                                                  style_tags={"modern": 1}))
+    names = [c["given_hangul"] for c in _all(r)]
+    assert len(names) == 20 and sum(map(is_hangul_only, names)) <= 5

@@ -18,7 +18,7 @@ export function Dashboard() {
     <div className="space-y-8">
       <section>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">안녕하세요 👋</h1>
-        <p className="mt-1 text-muted-foreground">아이 이름, 차근차근 함께 정해 봐요.</p>
+        <p className="mt-1 text-muted-foreground">우리 아기 이름, 차근차근 함께 정해 봐요.</p>
       </section>
 
       <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
@@ -27,7 +27,7 @@ export function Dashboard() {
             <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground"><Sparkles className="h-6 w-6" /></span>
             <div className="flex-1">
               <p className="text-lg font-semibold">새 이름 짓기</p>
-              <p className="text-sm text-muted-foreground">성씨와 원하는 느낌만 알려 주세요</p>
+              <p className="text-sm text-muted-foreground">성과 원하는 느낌만 알려 주시면 AI 와 함께 골라 드려요</p>
             </div>
             <ArrowRight className="h-5 w-5 text-primary transition group-hover:translate-x-1" />
           </Card>

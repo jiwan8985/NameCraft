@@ -40,6 +40,10 @@ export type RankedItem = {
     ai_subjective: boolean;
   };
   ai_reason: string | null;
+  provider_id?: string | null;
+  hanja_meanings?: { char: string; meaning: string | null }[] | null;
+  trend?: boolean;
+  native?: boolean;
   reaction?: "like" | "dislike" | "hold" | null;
 };
 

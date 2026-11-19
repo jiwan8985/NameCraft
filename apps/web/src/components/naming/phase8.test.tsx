@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 import { ConsentDialog } from "@/components/consent-dialog";
 import { AnalysisSections } from "@/components/naming/analysis-sections";
-import { CandidateCard } from "@/components/naming/recommendations";
+import { CandidateCard, reasonWithoutMeanings } from "@/components/naming/recommendations";
 import { RadarChart, ScoreBar } from "@/components/score";
 import type { RankedItem } from "@/lib/types";
 
@@ -20,21 +20,24 @@ const item: RankedItem = {
 };
 
 describe("CandidateCard", () => {
-  it("shows N/A (not 0), gate status, caution badge, source, AI opinion label", () => {
+  it("shows N/A (not 0), caution badge, AI badge, hanja meanings and AI reason", () => {
     const onReact = vi.fn();
     render(<CandidateCard item={item} selected={false} onSelect={() => {}} onReact={onReact} />);
     expect(screen.getAllByText("N/A")).toHaveLength(2); // 점수 자세히 안의 N/A 항목(0점으로 그리지 않음)
     expect(screen.getByText("81점")).toBeInTheDocument();
-    expect(screen.getByText("검토 권장")).toBeInTheDocument();
-    expect(screen.getByText(/AI 제안/)).toBeInTheDocument();
-    expect(screen.getByText(/AI 의견\(주관\)/)).toBeInTheDocument();
+    expect(screen.getByText("발음 검토")).toBeInTheDocument();
+    expect(screen.getByText(/AI 추천/)).toBeInTheDocument();
+    expect(screen.getByText("智")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "좋아요" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "싫어요" }));
     expect(onReact).toHaveBeenCalledWith("dislike");
   });
   it("hangul-only names show hangul badge instead of hanja gate", () => {
-    render(<CandidateCard item={{ ...item, given_hanja: null, gate: { official_hanja: "pass", caution: "none" } }} selected={false} onSelect={() => {}} onReact={() => {}} />);
+    render(<CandidateCard item={{ ...item, source: "data_based", given_hanja: null, gate: { official_hanja: "pass", caution: "none" } }} selected={false} onSelect={() => {}} onReact={() => {}} />);
     expect(screen.getByText("한글 이름")).toBeInTheDocument();
+    render(<CandidateCard item={{ ...item, id: "n2", source: "data_based", given_hanja: null, native: true, trend: true, gate: { official_hanja: "pass", caution: "none" } }} selected={false} onSelect={() => {}} onReact={() => {}} />);
+    expect(screen.getByText("순우리말")).toBeInTheDocument();
+    expect(screen.getByText("요즘 인기")).toBeInTheDocument();
   });
 });
 
@@ -88,5 +91,13 @@ describe("ConsentDialog", () => {
     expect(screen.getByText(/출생일시, 가족 이름/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "동의하고 보내기" }));
     expect(onConfirm).toHaveBeenCalled();
+  });
+});
+
+
+describe("reasonWithoutMeanings", () => {
+  it("drops the leading hanja meaning list already shown above", () => {
+    expect(reasonWithoutMeanings("夏 여름 하, 璘 옥빛 린. 여름 햇살 아래 빛나는 이름입니다.", true)).toBe("여름 햇살 아래 빛나는 이름입니다.");
+    expect(reasonWithoutMeanings("순우리말로 '즐거운'이라는 뜻입니다.", false)).toBe("순우리말로 '즐거운'이라는 뜻입니다.");
   });
 });

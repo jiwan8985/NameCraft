@@ -4,47 +4,55 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Heart, Info, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { ProjectNav } from "@/components/collab/use-project";
-import { ConsentDialog, type ConsentPreview } from "@/components/consent-dialog";
+import { AIPicker, AI_NAME, SendNote, defaultChoice, useProviders } from "@/components/ai-picker";
 import { CategoryBars } from "@/components/score";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chip, Details, Input, Notice, Select } from "@/components/ui/form";
-import { useAIOptions } from "@/lib/ai";
 import { apiFetch, postJson } from "@/lib/api";
 import type { Project, RankedItem, Warning } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const SORTS = [["overall", "추천순"], ["phonetic", "발음"], ["meaning", "의미"], ["numerology", "전통 수리"], ["usability", "쓰기 편함"], ["preference", "내 취향"]] as const;
-const SOURCE_LABEL: Record<string, string> = { rule_based: "자동 추천", data_based: "예시 기반", ai_based: "AI 제안", user: "직접 추가" };
+const SORTS = [["recommended", "추천 순서"], ["overall", "점수순"], ["phonetic", "발음"], ["meaning", "의미"], ["numerology", "전통 수리"], ["usability", "쓰기 편함"], ["preference", "내 취향"]] as const;
 
 type ListData = { items: RankedItem[]; weights_normalized: Record<string, number>; ranking_version: string };
 
-function scoreTone(v: number | null) {
-  if (v === null) return "bg-muted text-muted-foreground";
-  return v >= 85 ? "bg-ok-soft text-ok" : v >= 70 ? "bg-primary-soft text-primary" : "bg-warn-soft text-warn";
+/** AI 설명 앞의 '瑞 상서로울 서, 雅 맑을 아.' 훈음 나열은 카드 위에 이미 보이므로 뺀다. */
+export function reasonWithoutMeanings(reason: string, hasHanja: boolean) {
+  if (!hasHanja) return reason;
+  const out = reason.replace(/^(\s*[\u3400-\u9fff\uf900-\ufaff]\s*[(（]?[가-힣 ]{1,14}[)）]?\s*[,·、]?\s*)+[.。]\s*/, "");
+  return out.length > 0 ? out : reason;
 }
 
 export function CandidateCard({ item, selected, onSelect, onReact }: {
   item: RankedItem; selected: boolean; onSelect: (v: boolean) => void; onReact: (r: "like" | "dislike" | "hold") => void;
 }) {
   const liked = item.reaction === "like";
+  const ai = item.source === "ai_based";
   return (
-    <Card aria-label={item.full_hangul} className={cn("flex flex-col gap-3 transition hover:shadow-md", liked && "ring-2 ring-primary/40")}>
-      <div className="flex items-start justify-between gap-2">
-        <Link href={`/names/${item.id}`} className="group">
-          <p className="text-2xl font-bold tracking-wide group-hover:text-primary">{item.full_hangul}</p>
-          <p className="text-sm text-muted-foreground">{item.given_hanja ?? "한글 이름"}</p>
-        </Link>
-        <span className={cn("rounded-full px-3 py-1 text-sm font-semibold tabular-nums", scoreTone(item.overall))}>
-          {item.overall === null ? "N/A" : `${Math.round(item.overall)}점`}
-        </span>
+    <Card aria-label={item.full_hangul} className={cn("flex flex-col gap-3 transition hover:shadow-md", liked && "ring-2 ring-primary/50")}>
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+        {ai && <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2 py-0.5 font-medium text-primary"><Sparkles className="h-3 w-3" />{AI_NAME[item.provider_id ?? ""] ?? "AI"} 추천</span>}
+        {item.trend && <span className="rounded-full bg-ok-soft px-2 py-0.5 font-medium text-ok">요즘 인기</span>}
+        {(item.native || (!item.given_hanja && !ai)) && <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{item.native ? "순우리말" : "한글 이름"}</span>}
+        {item.given_hanja && item.gate.official_hanja === "fail" && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">인명용 아님</span>}
+        {item.gate.caution === "review" && <span className="rounded-full bg-warn-soft px-2 py-0.5 text-warn">발음 검토</span>}
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground" title="종합 점수">{item.overall === null ? "" : `${Math.round(item.overall)}점`}</span>
       </div>
-      <div className="flex flex-wrap gap-1.5 text-[11px]">
-        <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{SOURCE_LABEL[item.source ?? ""] ?? item.source}</span>
-        {item.given_hanja && item.gate.official_hanja === "fail" && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">공식 미수록</span>}
-        {item.gate.caution === "review" && <span className="rounded-full bg-warn-soft px-2 py-0.5 text-warn">검토 권장</span>}
-      </div>
-      {item.ai_reason && <p className="text-xs italic text-muted-foreground">AI 의견(주관): {item.ai_reason}</p>}
+      <Link href={`/names/${item.id}`} className="group">
+        <p className="text-3xl font-bold tracking-wider group-hover:text-primary">{item.full_hangul}</p>
+        {item.given_hanja && (
+          <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+            {(item.hanja_meanings ?? [...item.given_hanja].map((c) => ({ char: c, meaning: null }))).map((m, i) => (
+              <span key={i} className="inline-flex items-baseline gap-1">
+                <span className="text-lg font-medium">{m.char}</span>
+                {m.meaning && <span className="text-xs text-muted-foreground">{m.meaning}</span>}
+              </span>
+            ))}
+          </p>
+        )}
+      </Link>
+      {item.ai_reason && <p className="text-sm leading-relaxed text-muted-foreground">{reasonWithoutMeanings(item.ai_reason, !!item.given_hanja)}</p>}
       <Details summary="점수 자세히">
         <CategoryBars categories={item.categories} />
         {item.incomplete.length > 0 && <p className="mt-2 text-[11px] text-muted-foreground">N/A = 근거 자료가 없어 계산하지 않은 항목(0점 아님)</p>}
@@ -67,16 +75,22 @@ export function Recommendations({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [data, setData] = useState<ListData | null>(null);
   const [warnings, setWarnings] = useState<Warning[]>([]);
-  const [sort, setSort] = useState("overall");
+  const [sort, setSort] = useState("recommended");
   const [onlyLiked, setOnlyLiked] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [provider, setProvider] = useState("none");
+  const { list, reload } = useProviders();
+  const [provider, setProvider] = useState<string | null>(null);
+  useEffect(() => { if (list && provider === null) setProvider(defaultChoice(list)); }, [list, provider]);
+  const [showPicker, setShowPicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [consent, setConsent] = useState<ConsentPreview | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [manual, setManual] = useState({ hangul: "", hanja: "" });
-  const { opts, hasOff } = useAIOptions();
+  useEffect(() => {
+    const note = new URLSearchParams(window.location.search).get("note");
+    if (note === "ai_fallback") setNotice("AI 가 응답하지 않아 이름 사전에서 골랐어요. 아래 '더 받기'로 다시 시도해 보세요.");
+    if (note === "ai_error") setNotice("이름을 받지 못했어요. 아래 '더 받기'로 다시 시도해 보세요.");
+  }, []);
 
   const load = useCallback(async () => {
     const [p, c] = await Promise.all([apiFetch<Project>(`projects/${projectId}`),
@@ -89,18 +103,18 @@ export function Recommendations({ projectId }: { projectId: string }) {
   }, [projectId, sort]);
   useEffect(() => { load(); }, [load]);
 
-  async function generate(withConsent = false) {
+  const who = provider ?? "none";
+  async function generate() {
     setBusy(true);
     setNotice(null);
+    // 버튼 옆에 보낼 내용을 보여 주므로, AI 를 고른 상태에서 누르는 것이 동의
     const r = await postJson<{ provider_used: string; saved: unknown[]; fallback_reason: string | null }>(
-      `projects/${projectId}/candidates/generate`, { provider, consent: withConsent });
+      `projects/${projectId}/candidates/generate`, { provider: who, consent: who !== "none" });
     setBusy(false);
-    if (!r.ok) {
-      if (r.error.details?.consent_required) return setConsent(r.error.details.preview as ConsentPreview);
-      return setNotice(r.error.message);
-    }
-    const who = r.data.provider_used === "rule_based" ? "자동 추천" : r.data.provider_used;
-    setNotice(`새 후보 ${r.data.saved.length}개를 추가했어요 (${who}${r.data.fallback_reason ? " — AI를 쓸 수 없어 자동 추천으로 대신했어요" : ""}).`);
+    if (!r.ok) return setNotice(r.error.message);
+    const by = AI_NAME[r.data.provider_used] ?? "이름 사전";
+    if (r.data.saved.length === 0) setNotice(who === "none" ? "이름 사전의 조건에 맞는 이름은 모두 보여 드렸어요. AI 로 더 받아 보세요." : "새 이름을 받지 못했어요. 다시 시도해 보세요.");
+    else setNotice(`${by}에서 새 이름 ${r.data.saved.length}개를 받았어요.${r.data.fallback_reason ? " (AI 가 응답하지 않아 이름 사전에서 골랐어요)" : ""}`);
     load();
   }
   async function react(id: string, reaction: "like" | "dislike" | "hold") {
@@ -116,6 +130,12 @@ export function Recommendations({ projectId }: { projectId: string }) {
   }
 
   const items = useMemo(() => (data?.items ?? []).filter((i) => !onlyLiked || i.reaction === "like"), [data, onlyLiked]);
+  // AI 가 고른 이름을 먼저, 이름 사전·직접 추가는 그 아래
+  const groups = useMemo(() => {
+    const aiItems = items.filter((i) => i.source === "ai_based");
+    const rest = items.filter((i) => i.source !== "ai_based");
+    return [{ title: "AI 가 고른 이름", items: aiItems }, { title: aiItems.length ? "이름 사전에서 고른 이름" : "", items: rest }].filter((g) => g.items.length);
+  }, [items]);
   const likedCount = (data?.items ?? []).filter((i) => i.reaction === "like").length;
 
   if (error) return <Notice tone="danger" role="alert">{error}</Notice>;
@@ -136,20 +156,22 @@ export function Recommendations({ projectId }: { projectId: string }) {
         <ProjectNav projectId={projectId} />
       </header>
 
-      <Card className="flex flex-wrap items-center gap-2 p-3 [&>*]:min-w-0">
-        <Button disabled={busy} onClick={() => generate(false)}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} 후보 더 받기
-        </Button>
-        <Select aria-label="생성 방식" value={provider} onChange={(e) => setProvider(e.target.value)} className="w-auto rounded-full py-2">
-          {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </Select>
-        {hasOff && opts.length === 1 && <Link href="/settings" className="text-xs text-muted-foreground underline">AI 를 쓰려면 설정에서 켜세요</Link>}
-        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <Chip active={onlyLiked} onClick={() => setOnlyLiked((v) => !v)}><Heart className="mr-1 inline h-3.5 w-3.5" />좋아요만</Chip>
-          <Select aria-label="정렬" value={sort} onChange={(e) => setSort(e.target.value)} className="w-auto rounded-full py-2">
-            {SORTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </Select>
+      <Card className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center gap-2 [&>*]:min-w-0">
+          <Button disabled={busy} onClick={generate}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {busy ? (who === "none" ? "고르는 중…" : `${AI_NAME[who]}가 고르는 중… (20~40초)`) : `${AI_NAME[who]}에게 더 받기`}
+          </Button>
+          <Button variant="ghost" size="sm" aria-expanded={showPicker} onClick={() => setShowPicker((v) => !v)}>바꾸기</Button>
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <Chip active={onlyLiked} onClick={() => setOnlyLiked((v) => !v)}><Heart className="mr-1 inline h-3.5 w-3.5" />좋아요만</Chip>
+            <Select aria-label="정렬" value={sort} onChange={(e) => setSort(e.target.value)} className="w-auto rounded-full py-2">
+              {SORTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </Select>
+          </div>
         </div>
+        {showPicker && <AIPicker compact value={who} onChange={(v) => { setProvider(v); setShowPicker(false); }} list={list} reload={reload} />}
+        <SendNote provider={who} />
       </Card>
 
       {notice && <Notice role="status">{notice}</Notice>}
@@ -158,14 +180,19 @@ export function Recommendations({ projectId }: { projectId: string }) {
           한자가 인명용으로 허용되는지는 아직 공식 자료로 확인하지 않았어요. 마음에 드는 이름은 &lsquo;최종 결정&rsquo;에서 확인할 수 있어요.</p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((i) => (
-          <CandidateCard key={i.id} item={i} selected={selected.includes(i.id!)}
-                         onSelect={(v) => setSelected((s) => v ? [...s, i.id!].slice(0, 10) : s.filter((x) => x !== i.id))}
-                         onReact={(r) => react(i.id!, r)} />
-        ))}
-      </div>
-      {items.length === 0 && <Card className="text-center text-sm text-muted-foreground">{onlyLiked ? "아직 좋아요 한 이름이 없어요." : "후보가 없어요. '후보 더 받기'를 눌러 보세요."}</Card>}
+      {groups.map((g) => (
+        <section key={g.title || "rest"} className="space-y-3">
+          {g.title && <h2 className="text-sm font-semibold text-muted-foreground">{g.title} <span className="font-normal">{g.items.length}</span></h2>}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {g.items.map((i) => (
+              <CandidateCard key={i.id} item={i} selected={selected.includes(i.id!)}
+                             onSelect={(v) => setSelected((s) => v ? [...s, i.id!].slice(0, 10) : s.filter((x) => x !== i.id))}
+                             onReact={(r) => react(i.id!, r)} />
+            ))}
+          </div>
+        </section>
+      ))}
+      {items.length === 0 && <Card className="text-center text-sm text-muted-foreground">{onlyLiked ? "아직 좋아요 한 이름이 없어요." : "아직 이름이 없어요. 위의 '더 받기'를 눌러 보세요."}</Card>}
 
       <div className="grid gap-3 md:grid-cols-2">
         <Card className="space-y-2 p-4">
@@ -185,7 +212,6 @@ export function Recommendations({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      {consent && <ConsentDialog preview={consent} onCancel={() => setConsent(null)} onConfirm={() => { setConsent(null); generate(true); }} />}
     </div>
   );
 }
