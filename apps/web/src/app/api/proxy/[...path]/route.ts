@@ -37,17 +37,22 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
     const upstream = await fetch(target, {
       method: req.method,
       headers: { Authorization: `Bearer ${token}`, "Content-Type": req.headers.get("content-type") ?? "application/json" },
-      body: ["GET", "HEAD"].includes(req.method) ? undefined : await req.text(),
+      // 바이너리 업로드(multipart)를 깨뜨리지 않도록 원본 바이트 그대로 전달
+      body: ["GET", "HEAD"].includes(req.method) ? undefined : await req.arrayBuffer(),
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
     });
-    return new NextResponse(upstream.body, {
-      status: upstream.status,
-      headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
-    });
+    const passthrough = ["content-type", "content-disposition", "x-content-type-options", "content-security-policy"];
+    const headers = new Headers();
+    for (const h of passthrough) {
+      const v = upstream.headers.get(h);
+      if (v) headers.set(h, v);
+    }
+    if (!headers.has("content-type")) headers.set("content-type", "application/json");
+    return new NextResponse(upstream.body, { status: upstream.status, headers });
   } catch {
     return NextResponse.json(errorBody("api_unreachable", "API 서버에 연결할 수 없습니다."), { status: 502 });
   }
 }
 
-export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };

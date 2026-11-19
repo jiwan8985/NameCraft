@@ -63,7 +63,14 @@
 | POST | `/api/v1/family/votes` | 필요 | 9 | 구현 — 구성원별 좋아요·싫어요·보류·순위(후보 제외에 영향 없음) |
 | POST/GET | `/api/v1/tournaments`, `/tournaments/{id}`, `/tournaments/{id}/vote`, `/projects/{id}/tournaments` | 필요 | 9 | 구현 — 1:1 토너먼트(부전승, 보류 = 둘 다 진출, 줄지 않으면 보류 종료) |
 | PUT/GET/POST | `/api/v1/projects/{id}/finalists`, `/finalists/board`, `/decision`, `/decisions` | 필요 | 9 | 구현 — 3~5개 결선 보드(같은 기준), 결정(이유 필수·스냅샷), 이전 결정 보존 |
-| 기타 §18 엔드포인트 | | 필요 | 10~11 | 미구현 |
+| POST/GET | `/api/v1/imports`, `/imports/{id}` | 필요 | 10 | 구현 — multipart 업로드(PDF·PNG·JPEG·WEBP·텍스트·CSV, 10MB, 시그니처 검사), 추출 텍스트·추출값·최근 교차검증 |
+| GET | `/api/v1/imports/{id}/file` | 필요 | 10 | 구현 — 원본 보기(`nosniff`, 제한적 CSP) |
+| POST/PATCH | `/api/v1/imports/{id}/assertions`, `/assertions/{id}` | 필요 | 10 | 구현 — 직접 입력 / 확인·수정·제외(원문 값 보존) |
+| POST | `/api/v1/imports/{id}/crosscheck` | 필요 | 10 | 구현 — 검토된 값만 비교, 결과 match / numeric_difference / formula_difference / source_difference / not_comparable + 재현 조건 |
+| DELETE | `/api/v1/imports/{id}` | 필요 | 10 | 구현 — 원본 파일·추출 텍스트·추출값·교차검증 삭제 |
+| POST | `/api/v1/finalize/check` | 필요 | 10 | 구현 — 출생신고 준비 점검(표기·독음·공식 판정·호환 한자·자료 기준일·체크리스트·공식 링크·고지). 최종 완료 표시 없음 |
+| GET | `/api/v1/projects/{id}/finalize-check` | 필요 | 10 | 구현 — 결정된 이름 기준 점검 |
+| 기타 §18 엔드포인트 | | 필요 | 11 | 미구현 (`/reports`) |
 
 ### `POST /saju/calculate` 요청
 

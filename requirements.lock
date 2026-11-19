@@ -28,8 +28,10 @@ pydantic==2.14.3
 pydantic-settings==2.16.3
 pydantic_core==2.50.4
 Pygments==2.21.0
+pypdf==7.1.1
 pytest==9.2.0
 python-dotenv==1.2.4
+python-multipart==0.0.34
 PyYAML==6.0.3
 referencing==0.37.0
 rpds-py==2026.9.1

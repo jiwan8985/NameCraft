@@ -14,6 +14,8 @@ dependencies = [
   "skyfield>=1.55",
   "korean-lunar-calendar>=0.4",
   "tzdata>=2026.6",
+  "python-multipart>=0.0.34",
+  "pypdf>=7.1",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { RegistrationCheck } from "@/components/collab/registration-check";
 import { ProjectNav, useCandidates } from "@/components/collab/use-project";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export function FinalizeView({ projectId }: { projectId: string }) {
   const [chosen, setChosen] = useState("");
   const [reason, setReason] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [checkKey, setCheckKey] = useState(0);
   const load = useCallback(async () => {
     const [b, d] = await Promise.all([apiFetch<any>(`projects/${projectId}/finalists/board`), apiFetch<any[]>(`projects/${projectId}/decisions`)]);
     setBoard(b.ok ? b.data : null);
@@ -34,8 +36,9 @@ export function FinalizeView({ projectId }: { projectId: string }) {
   }
   async function decide() {
     const r = await postJson(`projects/${projectId}/decision`, { candidate_id: chosen, reason });
-    setMsg(r.ok ? "결정을 기록했습니다. 출생신고 전 공식 인명용 한자 조회로 다시 확인하세요." : r.error.message);
+    setMsg(r.ok ? "결정을 기록했습니다. 아래 출생신고 준비 점검을 확인하세요." : r.error.message);
     load();
+    setCheckKey((k) => k + 1);
   }
   return (
     <div className="space-y-4">
@@ -74,9 +77,10 @@ export function FinalizeView({ projectId }: { projectId: string }) {
             <Field label="선택 이유" htmlFor="reason"><Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
             <Button disabled={!chosen || !reason.trim()} onClick={decide}>결정 기록</Button>
           </div>
-          <p className="text-xs text-muted-foreground">선택하지 않은 후보도 그대로 남아 언제든 다시 볼 수 있습니다. 출생신고 준비 점검은 다음 단계에서 추가됩니다.</p>
+          <p className="text-xs text-muted-foreground">선택하지 않은 후보도 그대로 남아 언제든 다시 볼 수 있습니다.</p>
         </Card>
       )}
+      {board?.chosen_candidate_id && <RegistrationCheck projectId={projectId} refreshKey={checkKey} />}
       {hist.length > 0 && (
         <Card><CardTitle>결정 기록</CardTitle>
           <ul className="mt-2 text-sm">{hist.map((d) => <li key={d.id}>{d.created_at.slice(0, 16)} · 결선 {d.finalists.length}개 · {d.chosen_candidate_id ? `선택: ${items.find((i) => i.id === d.chosen_candidate_id)?.full_hangul ?? d.chosen_candidate_id} — ${d.reason}` : "선택 전"}{d.is_current ? " · 현재" : ""}</li>)}</ul></Card>

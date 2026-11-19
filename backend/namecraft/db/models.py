@@ -433,3 +433,58 @@ class FinalNameDecision(Base):
     birth_profile_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     is_current: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ---------------------------------------------------------------------------
+# Phase 10: 작명소 자료 가져오기·교차검증 (기획서 §13)
+# 업로드 원본은 var/uploads 에 무작위 이름으로 저장, 실행·AI 전송하지 않는다.
+# ---------------------------------------------------------------------------
+
+
+class ImportedDocument(Base):
+    __tablename__ = "imported_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("naming_projects.id", ondelete="SET NULL"),
+                                                   nullable=True, index=True)
+    original_filename: Mapped[str] = mapped_column(String(200))  # 표시용(정리된 이름)
+    stored_name: Mapped[str] = mapped_column(String(80))  # 무작위 저장 이름
+    media_type: Mapped[str] = mapped_column(String(50))
+    kind: Mapped[str] = mapped_column(String(10))  # pdf | image | text | csv
+    size_bytes: Mapped[int]
+    sha256: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="uploaded")  # uploaded | extracted | reviewed | deleted
+    extraction_method: Mapped[str | None] = mapped_column(String(30), nullable=True)  # text | csv | pdf_text | manual
+    extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    warnings: Mapped[list] = mapped_column(JSON, default=list)
+    retention_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ExtractedAssertion(Base):
+    """문서에서 추출(또는 사람이 입력)한 주장 — 원문 위치와 함께 저장, 사람 검토 후에만 교차검증에 사용."""
+
+    __tablename__ = "extracted_assertions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    document_id: Mapped[str] = mapped_column(ForeignKey("imported_documents.id", ondelete="CASCADE"), index=True)
+    field: Mapped[str] = mapped_column(String(40))  # name_hangul | name_hanja | strokes | gyeok.won | luck.won | saju_pillars | stroke_system | ...
+    value: Mapped[str] = mapped_column(String(200))
+    raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # 원문 조각
+    source: Mapped[str] = mapped_column(String(20))  # parsed | manual
+    confidence: Mapped[str] = mapped_column(String(20), default="parsed_unreviewed")
+    review_status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | accepted | corrected | rejected
+    corrected_value: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CrosscheckResult(Base):
+    __tablename__ = "crosscheck_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    document_id: Mapped[str] = mapped_column(ForeignKey("imported_documents.id", ondelete="CASCADE"), index=True)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    engine_versions: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -13,7 +13,7 @@ from namecraft.auth import ensure_token
 from namecraft.config import Settings, get_settings
 from namecraft.errors import AppError
 from namecraft_api.deps import require_local_auth
-from namecraft_api.routers import ai, collab, health, lexicon, names, numerology, projects, saju
+from namecraft_api.routers import ai, collab, health, imports, lexicon, names, numerology, projects, saju
 
 API_PREFIX = "/api/v1"
 
@@ -29,7 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -53,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(names.router, prefix=API_PREFIX, dependencies=protected)
     app.include_router(projects.router, prefix=API_PREFIX, dependencies=protected)
     app.include_router(collab.router, prefix=API_PREFIX, dependencies=protected)
+    app.include_router(imports.router, prefix=API_PREFIX, dependencies=protected)
 
     @app.get(f"{API_PREFIX}/auth/whoami", dependencies=protected, tags=["auth"])
     def whoami():
