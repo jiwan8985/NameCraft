@@ -43,7 +43,7 @@ rules:
 
 | rule_id | 종류 | 정의 |
 |---|---|---|
-| STROKE.MODERN.v1 | calc(데이터) | 현대 필획. 초기값 Unihan `kTotalStrokes`(unverified) |
+| STROKE.MODERN.UNIHAN.v1 | calc(데이터) | 현대 필획 = Unihan `kTotalStrokes`. 값이 2개면 UAX #38상 둘째(zh-Hant 선호)값 사용(한국 정자 기준). 상태 unverified (Phase 2 구현) |
 | STROKE.ORIGINAL.v1 | trad | 성명학 원획(강희 기준 + 부수 본자 환원: 氵→水 4, 扌→手 4, 忄→心 4, 犭→犬 4, 礻→示 5, 衤→衣 6, 月(肉)→肉 6, 艹→艸 6, 辶→辵 7, 阝(左, 阜)→8, 阝(右, 邑)→7, 王(玉)→玉 5 등). **학파마다 다를 수 있어 표 전체를 프로필 데이터로 관리** |
 | STROKE.NUMERAL.v1 | trad | 숫자 한자 획수 특례(一~十을 수의 뜻으로 1~10 적용하는 학파 존재) — 옵션 `numeral_by_meaning: false` 기본 |
 

@@ -18,7 +18,10 @@ def test_health_ok_with_migrated_db(client):
     body = r.json()
     assert ENVELOPE_FIELDS <= body.keys()  # REQ-NF-001
     assert body["status"] == "ok"
-    assert body["data"]["db"] == {"ok": True, "revision": "0001"}
+    from alembic.script import ScriptDirectory
+
+    head = ScriptDirectory.from_config(migrate.alembic_config("sqlite://")).get_current_head()
+    assert body["data"]["db"] == {"ok": True, "revision": head}
     assert body["warnings"] == []
 
 

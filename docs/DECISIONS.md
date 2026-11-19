@@ -15,6 +15,10 @@
 | D-009 | 2026-11-19 | 외부 CI 미사용, 로컬 일괄 실행 `python scripts/tasks.py test` (WSL·Windows 모두 make 미설치) | 기획서 Phase 1 | accepted |
 | D-010 | 2026-11-19 | 런타임: Windows Python 3.14.6 venv(`.venv`) + Windows Node 24.15 + npm. WSL 측 uv/Node 사용자 영역 설치는 보류(자동 설치 권한 미허용) | 기존 설치 도구만으로 구성, 프로젝트가 D: 드라이브에 있어 Windows 툴체인이 자연스러움 | accepted |
 | D-011 | 2026-11-19 | 로컬 인증: 단일 사용자 무작위 토큰(`var/local_token`) + Next 서버 프록시가 토큰 첨부, 브라우저 비노출. 프록시는 교차 출처·CSRF 헤더 검사 | §20, §31.2 | accepted |
+| D-013 | 2026-11-19 | 한자 텍스트에 NFC 일괄 적용 금지 — 호환 한자(U+F900–FAFF 등)는 원 코드포인트 보존, `canonical_codepoint`로 통합 한자와 연결 | NFC가 U+F9E1(李, 이)을 U+674E로 접어 독음 구분이 사라짐(테스트로 확인) | accepted |
+| D-014 | 2026-11-19 | Unihan `kHangul` 플래그 E 또는 N → `is_name_reading=True`(비공식 힌트) | 인명용 한자 = 교육용 기초한자 + 인명용 추가한자 (가족관계등록규칙 제37조). 단 법적 판정에는 사용 안 함 | accepted |
+| D-015 | 2026-11-19 | 테스트용 Unihan 부분집합(`datasets/fixtures/unihan-subset.zip`, 라이선스 동봉)은 Git 포함, 전체 원천 zip은 미포함(`fetch-unihan`) | Unicode License v3가 재배포 허용, 원천은 D-008 정책 유지 | accepted |
+| D-016 | 2026-11-19 | 공식 인명용 한자표는 사람이 검토해 만든 **정규화 CSV**(`hanja,reading,effective_date,legal_basis`)로만 가져옴. 샘플 플래그 레코드는 절대 verified 아님 | 원본 형식 미확정·스크래핑 금지(REQ-HJ-004) | accepted |
 | D-012 | 2026-11-19 | TypeScript 5.9 고정(TS 7 네이티브는 Next 16 빌드 호환성 확인 전 보류) | 빌드 안정성 | accepted |
 
 ## Open Questions (사용자 결정 필요)

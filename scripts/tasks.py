@@ -3,6 +3,9 @@
 사용법:
     python scripts/tasks.py setup      # venv 의존성 + web npm 설치
     python scripts/tasks.py migrate    # DB 마이그레이션 (SQLite 기본)
+    python scripts/tasks.py fetch-unihan  # Unicode Unihan 원천 파일 다운로드 + 체크섬 기록
+    python scripts/tasks.py import-data   # 출처 manifest 동기화 + Unihan + 성씨 시드 가져오기
+    python scripts/tasks.py import-official <정규화CSV>  # 사람이 검토한 대법원 인명용 한자표
     python scripts/tasks.py dev        # API(127.0.0.1:8000) + Web(127.0.0.1:3000) 동시 기동
     python scripts/tasks.py dev-api | dev-web
     python scripts/tasks.py test       # 백엔드 pytest + 웹 vitest + 타입검사
@@ -78,6 +81,68 @@ def kill_tree(proc: subprocess.Popen) -> None:
         proc.terminate()
 
 
+UNIHAN_URL = "https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip"
+
+
+def _raw_unihan() -> Path | None:
+    files = sorted((ROOT / "datasets" / "raw" / "SRC-UNIHAN").glob("*/Unihan.zip"))
+    return files[-1] if files else None
+
+
+def fetch_unihan() -> int:
+    import datetime
+    import hashlib
+    import urllib.request
+
+    dest = ROOT / "datasets" / "raw" / "SRC-UNIHAN" / datetime.date.today().isoformat() / "Unihan.zip"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    print("download", UNIHAN_URL)
+    with urllib.request.urlopen(UNIHAN_URL, timeout=120) as r:  # 공개 파일, 사용자 정보 전송 없음
+        dest.write_bytes(r.read())
+    digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+    print("saved", dest, "sha256", digest)
+    print("datasets/source-manifests/SRC-UNIHAN.yaml 의 checksum_sha256 과 다르면 버전 변경 — 검토 후 갱신하세요.")
+    return 0
+
+
+def _session():
+    sys.path[:0] = [str(ROOT / "backend")]
+    from sqlalchemy.orm import sessionmaker
+
+    from namecraft.db import get_engine
+
+    return sessionmaker(bind=get_engine())()
+
+
+def import_data() -> int:
+    migrate()
+    from namecraft.adapters.importers.sources import sync_manifests
+    from namecraft.adapters.importers.surnames import import_surname_seed
+    from namecraft.adapters.importers.unihan import import_unihan
+
+    raw = _raw_unihan()
+    if raw is None:
+        sys.exit("Unihan 원천 파일이 없습니다. 먼저 `tasks.py fetch-unihan` 을 실행하세요.")
+    with _session() as s:
+        print("sources:", sync_manifests(s))
+        print("unihan:", import_unihan(s, raw))
+        print("surnames:", import_surname_seed(s))
+        s.commit()
+    return 0
+
+
+def import_official() -> int:
+    if len(sys.argv) < 3:
+        sys.exit("사용법: tasks.py import-official <정규화CSV경로>")
+    migrate()
+    from namecraft.adapters.importers.scourt_hanja import import_official_csv
+
+    with _session() as s:
+        print(import_official_csv(s, Path(sys.argv[2]), is_sample=False))
+        s.commit()
+    return 0
+
+
 def dev_api() -> int:
     migrate()
     return run(API_CMD)
@@ -119,11 +184,12 @@ def test() -> int:
     return 1 if any(results.values()) else 0
 
 
-TASKS = {"setup": setup, "migrate": migrate, "dev": dev, "dev-api": dev_api, "dev-web": dev_web,
+TASKS = {"setup": setup, "migrate": migrate, "fetch-unihan": fetch_unihan, "import-data": import_data,
+         "import-official": import_official, "dev": dev, "dev-api": dev_api, "dev-web": dev_web,
          "test": test, "test-api": test_api, "test-web": test_web, "build-web": build_web}
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in TASKS:
+    if len(sys.argv) < 2 or sys.argv[1] not in TASKS:
         print(__doc__)
         sys.exit(2)
     sys.exit(TASKS[sys.argv[1]]())

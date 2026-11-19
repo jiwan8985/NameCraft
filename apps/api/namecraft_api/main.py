@@ -13,7 +13,7 @@ from namecraft.auth import ensure_token
 from namecraft.config import Settings, get_settings
 from namecraft.errors import AppError
 from namecraft_api.deps import require_local_auth
-from namecraft_api.routers import ai, health
+from namecraft_api.routers import ai, health, lexicon
 
 API_PREFIX = "/api/v1"
 
@@ -47,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router, prefix=API_PREFIX)  # 인증 예외
     protected = [Depends(require_local_auth)]
     app.include_router(ai.router, prefix=API_PREFIX, dependencies=protected)
+    app.include_router(lexicon.router, prefix=API_PREFIX, dependencies=protected)
 
     @app.get(f"{API_PREFIX}/auth/whoami", dependencies=protected, tags=["auth"])
     def whoami():

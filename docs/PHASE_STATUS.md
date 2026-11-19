@@ -3,8 +3,8 @@
 | Phase | 목표 | 상태 | 커밋 | 비고 |
 |---|---|---|---|---|
 | 0 | 요구사항 확정·레퍼런스 확보 | 완료(승인됨) | b224e69 | |
-| 1 | Monorepo/기반 환경 | **완료 보고(승인 대기)** | (이 커밋) | 아래 상세 |
-| 2 | 성씨·한자·어휘 DB | 대기 | | |
+| 1 | Monorepo/기반 환경 | 완료(승인됨) | 3a72eea | |
+| 2 | 성씨·한자·어휘 DB | **완료 보고(승인 대기) — 공식 데이터 항목 부분 완료** | (이 커밋) | 아래 상세 |
 | 3 | 만세력·사주 엔진 | 대기 | | |
 | 4 | 전통 성명학 | 대기 | | |
 | 5 | 언어·의미 평가 | 대기 | | |
@@ -15,6 +15,47 @@
 | 10 | 자료 교차검증·최종 점검 | 대기 | | |
 | 11 | 보고서·PWA·백업·AI 관제 | 대기 | | |
 | 12 | 성능·보안·출시 | 대기 | | |
+
+## Phase 2 — 완료 보고 (2026-11-19)
+
+### 산출물
+| 기획서 요구 | 구현 |
+|---|---|
+| DB schema | 마이그레이션 `0002` — hanja_characters / readings / variants / stroke_counts / element_mappings, official_name_character_rules, surnames / surname_variants, dictionary_terms, name_popularity_datasets / rows (11 테이블) |
+| seed | Unihan 18.0.0 → 한자 8,525자 · 독음 8,917 · 현대 필획 8,525 · 이체자 5,930 (모두 `unverified`). 성씨 시드 120개(단성 112 + 복성 8) |
+| import pipeline | `tasks.py fetch-unihan / import-data / import-official` — 체크섬·data_release_versions 기록, 재실행 멱등, 출처 manifest → reference_sources 동기화 |
+| 조회 API | `GET /surnames`, `POST /surnames/provisional`, `GET /hanja`, `GET /hanja/{cp}`, `GET /admin/data` |
+| UI | `/admin/data` — 데이터 현황·출처·데이터 버전, 공식 자료 미적재 경고 |
+| 텍스트 정규화 | 호환 한자 보존(NFC 접기 금지), 한글 자모 합성 (D-013) |
+
+### 완료 게이트: "이체자·독음·획수 출처 검증"
+| 항목 | 결과 |
+|---|---|
+| 이체자 | 호환한자 ↔ 통합한자 링크(예: U+F9E1 李(이) → U+674E), 조회 시 계열 함께 반환, NFC로 접히지 않음 — **통과** |
+| 독음 | 다중 독음(樂: 낙·락·악·요)과 플래그별 인명용 힌트 분리, 출처 `SRC-UNIHAN`·상태 `unverified` 필수 — **통과** |
+| 획수 | 현대 필획만 적재(`STROKE.MODERN.UNIHAN.v1`), 원획 0건(Phase 4) — 필드·규칙 분리 **통과** |
+| 성씨 교차검증 | 시드 120개 한자 독음을 Unihan과 자동 대조 → 충돌 0 |
+| 공식 판정 분리 | 공식 미적재 시 `unknown` + 경고, 샘플은 `sample_only`, 실제 적재 시 `verified` / `not_listed` / 출처 충돌 시 `conflict` — 테스트로 검증 |
+| **공식 인명용 한자표 적재** | **미완료** — 원본 파일·이용조건 미확보. 가져오기 경로(정규화 CSV)만 구현·테스트 |
+| 어휘(dictionary_terms) | 스키마만. 국립국어원 자료 이용조건 확인 후 Phase 5에서 적재 |
+| 이름 통계 | 스키마만. 공개 통계 수동 확인 후 적재 |
+
+### 테스트 결과
+| 묶음 | 통과 | 실패 |
+|---|---:|---:|
+| pytest 전체 (Phase 2 신규: 정규화 5, 가져오기 12, 조회 API 10) | 48 | 0 |
+| vitest (신규: 데이터 관리 화면 1) | 10 | 0 |
+| tsc / next build | 통과 | |
+| 실제 기동: 전체 Unihan 적재 후 프록시 경유 조회(심 인명 한자 15자, 沈 계열 U+6C88·U+F972) | 정상 | |
+| Docker compose: 컨테이너 기동 시 import-data → 조회 | 정상 | |
+
+### 알려진 문제 / 메모
+- 성씨 시드·Unihan 독음은 공식 근거가 아님 — 화면·API 모두 `unverified`로 표시.
+- Unihan `kKoreanName`은 2015/2018판 기준이라 현행 인명용 한자표와 다를 수 있음.
+- 개발 서버 종료: 세션 도구의 강제 종료로는 Windows 측 자식 프로세스에 신호가 전달되지 않아 수동 정리함. 터미널 Ctrl+C 경로의 트리 종료는 아직 직접 확인하지 못함.
+
+### 다음 Phase(3) 준비 사항
+- 만세력·사주 엔진: 음양력 변환, 절기(천문 계산), 사주 4주, 자시 옵션, 시간 범위 분할. **외부 기준값(KASI) 대조가 완료 게이트** — 조회 방법(웹 수동 조회 또는 사용자가 발급한 공공데이터 API 키) 결정 필요.
 
 ## Phase 1 — 완료 보고 (2026-11-19)
 

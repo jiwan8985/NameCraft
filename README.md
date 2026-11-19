@@ -18,12 +18,22 @@
 ```powershell
 python -m venv .venv
 .venv\Scripts\python scripts\tasks.py setup     # pip + npm ci
+.venv\Scripts\python scripts\tasks.py fetch-unihan  # Unicode Unihan 원천 파일 (최초 1회)
+.venv\Scripts\python scripts\tasks.py import-data   # 출처·한자·성씨 데이터 적재
 .venv\Scripts\python scripts\tasks.py dev       # API 127.0.0.1:8000 + Web 127.0.0.1:3000
 ```
 
 - 웹: http://127.0.0.1:3000 · 헬스체크: http://127.0.0.1:8000/api/v1/health
 - 최초 실행 시 `var/local_token`(로컬 인증 토큰)과 `var/namecraft.db`(SQLite)가 생성됩니다. `var/`는 Git에 포함되지 않습니다.
 - macOS/Linux: `.venv/bin/python scripts/tasks.py ...`
+
+### 공식 인명용 한자표
+
+대법원 인명용 한자표를 직접 받아 검토한 뒤 정규화 CSV(`hanja,reading,effective_date,legal_basis`)로 만들어 가져옵니다. 적재 전까지 모든 한자의 법적 허용 여부는 **판정 불가**로 표시됩니다.
+
+```powershell
+.venv\Scripts\python scripts\tasks.py import-official path\to\official.csv
+```
 
 ### 테스트
 

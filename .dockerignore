@@ -4,3 +4,4 @@ var
 **/.next
 **/__pycache__
 .git
+datasets/raw/**/extracted

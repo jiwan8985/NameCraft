@@ -1,0 +1,126 @@
+# 개발자 큐레이션 성씨 시드 (SRC-DEV-SURNAME-SEED)
+# - 상태는 모두 unverified. 공식/통계 출처로 대조되기 전까지 확정값이 아니다.
+# - 한자 독음은 가져오기 시 Unihan kHangul과 자동 대조하며, 불일치 시 conflict로 표시한다.
+# - alt: 두음법칙 등 대체 한글 표기.
+schema_version: 1
+surnames:
+  - {hangul: 김, hanja: 金}
+  - {hangul: 이, hanja: 李, alt: [리]}
+  - {hangul: 박, hanja: 朴}
+  - {hangul: 최, hanja: 崔}
+  - {hangul: 정, hanja: 鄭}
+  - {hangul: 정, hanja: 丁}
+  - {hangul: 정, hanja: 程}
+  - {hangul: 강, hanja: 姜}
+  - {hangul: 강, hanja: 康}
+  - {hangul: 강, hanja: 江}
+  - {hangul: 조, hanja: 趙}
+  - {hangul: 조, hanja: 曺}
+  - {hangul: 윤, hanja: 尹}
+  - {hangul: 장, hanja: 張}
+  - {hangul: 장, hanja: 蔣}
+  - {hangul: 임, hanja: 林, alt: [림]}
+  - {hangul: 임, hanja: 任}
+  - {hangul: 한, hanja: 韓}
+  - {hangul: 오, hanja: 吳}
+  - {hangul: 서, hanja: 徐}
+  - {hangul: 신, hanja: 申}
+  - {hangul: 신, hanja: 辛}
+  - {hangul: 신, hanja: 愼}
+  - {hangul: 권, hanja: 權}
+  - {hangul: 황, hanja: 黃}
+  - {hangul: 안, hanja: 安}
+  - {hangul: 송, hanja: 宋}
+  - {hangul: 류, hanja: 柳, alt: [유]}
+  - {hangul: 유, hanja: 劉, alt: [류]}
+  - {hangul: 유, hanja: 兪}
+  - {hangul: 전, hanja: 全}
+  - {hangul: 전, hanja: 田}
+  - {hangul: 홍, hanja: 洪}
+  - {hangul: 고, hanja: 高}
+  - {hangul: 문, hanja: 文}
+  - {hangul: 양, hanja: 梁, alt: [량]}
+  - {hangul: 양, hanja: 楊}
+  - {hangul: 손, hanja: 孫}
+  - {hangul: 배, hanja: 裵}
+  - {hangul: 백, hanja: 白}
+  - {hangul: 허, hanja: 許}
+  - {hangul: 남, hanja: 南}
+  - {hangul: 심, hanja: 沈}
+  - {hangul: 노, hanja: 盧, alt: [로]}
+  - {hangul: 하, hanja: 河}
+  - {hangul: 곽, hanja: 郭}
+  - {hangul: 성, hanja: 成}
+  - {hangul: 차, hanja: 車}
+  - {hangul: 주, hanja: 朱}
+  - {hangul: 우, hanja: 禹}
+  - {hangul: 구, hanja: 具}
+  - {hangul: 나, hanja: 羅, alt: [라]}
+  - {hangul: 민, hanja: 閔}
+  - {hangul: 진, hanja: 陳}
+  - {hangul: 진, hanja: 秦}
+  - {hangul: 지, hanja: 池}
+  - {hangul: 엄, hanja: 嚴}
+  - {hangul: 채, hanja: 蔡}
+  - {hangul: 원, hanja: 元}
+  - {hangul: 천, hanja: 千}
+  - {hangul: 방, hanja: 方}
+  - {hangul: 공, hanja: 孔}
+  - {hangul: 현, hanja: 玄}
+  - {hangul: 함, hanja: 咸}
+  - {hangul: 변, hanja: 卞}
+  - {hangul: 염, hanja: 廉, alt: [렴]}
+  - {hangul: 여, hanja: 呂, alt: [려]}
+  - {hangul: 추, hanja: 秋}
+  - {hangul: 도, hanja: 都}
+  - {hangul: 소, hanja: 蘇}
+  - {hangul: 석, hanja: 石}
+  - {hangul: 선, hanja: 宣}
+  - {hangul: 설, hanja: 薛}
+  - {hangul: 마, hanja: 馬}
+  - {hangul: 길, hanja: 吉}
+  - {hangul: 연, hanja: 延}
+  - {hangul: 위, hanja: 魏}
+  - {hangul: 표, hanja: 表}
+  - {hangul: 명, hanja: 明}
+  - {hangul: 기, hanja: 奇}
+  - {hangul: 반, hanja: 潘}
+  - {hangul: 왕, hanja: 王}
+  - {hangul: 금, hanja: 琴}
+  - {hangul: 옥, hanja: 玉}
+  - {hangul: 육, hanja: 陸, alt: [륙]}
+  - {hangul: 인, hanja: 印}
+  - {hangul: 맹, hanja: 孟}
+  - {hangul: 제, hanja: 諸}
+  - {hangul: 탁, hanja: 卓}
+  - {hangul: 국, hanja: 鞠}
+  - {hangul: 어, hanja: 魚}
+  - {hangul: 은, hanja: 殷}
+  - {hangul: 편, hanja: 片}
+  - {hangul: 용, hanja: 龍, alt: [룡]}
+  - {hangul: 예, hanja: 芮}
+  - {hangul: 경, hanja: 慶}
+  - {hangul: 봉, hanja: 奉}
+  - {hangul: 사, hanja: 史}
+  - {hangul: 부, hanja: 夫}
+  - {hangul: 태, hanja: 太}
+  - {hangul: 목, hanja: 睦}
+  - {hangul: 피, hanja: 皮}
+  - {hangul: 두, hanja: 杜}
+  - {hangul: 감, hanja: 甘}
+  - {hangul: 빈, hanja: 賓}
+  - {hangul: 동, hanja: 董}
+  - {hangul: 온, hanja: 溫}
+  - {hangul: 범, hanja: 范}
+  - {hangul: 팽, hanja: 彭}
+  - {hangul: 승, hanja: 承}
+  - {hangul: 상, hanja: 尙}
+  - {hangul: 갈, hanja: 葛}
+  - {hangul: 남궁, hanja: 南宮, compound: true}
+  - {hangul: 황보, hanja: 皇甫, compound: true}
+  - {hangul: 제갈, hanja: 諸葛, compound: true}
+  - {hangul: 선우, hanja: 鮮于, compound: true}
+  - {hangul: 독고, hanja: 獨孤, compound: true}
+  - {hangul: 사공, hanja: 司空, compound: true}
+  - {hangul: 서문, hanja: 西門, compound: true}
+  - {hangul: 동방, hanja: 東方, compound: true}

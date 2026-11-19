@@ -1,0 +1,15 @@
+id: SRC-DEV-SURNAME-SEED
+name: "개발자 큐레이션 성씨 시드 (datasets/seed/surnames.yaml)"
+url: ""
+authority: developer_curated
+purpose: "성씨 사전 초기값 — 공식 통계 대조 전 임시"
+access_method: repository_file
+license: "project-own"
+license_verified_at: 2026-11-19
+terms_url: null
+retrieved_at: 2026-11-19
+effective_date: null
+checksum_sha256: null
+coverage: "주요 단성 약 110개 + 복성 8개 (전체 성씨 아님)"
+status: approved
+notes: "레코드는 모두 unverified. 통계청/대법원 성씨 자료로 대체·대조 예정"

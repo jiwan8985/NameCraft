@@ -5,6 +5,8 @@ COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
 COPY backend backend
 COPY apps/api apps/api
+COPY scripts scripts
 COPY datasets datasets
 EXPOSE 8000
-CMD ["sh", "-c", "python -c 'from namecraft.config import get_settings; from namecraft.db import migrate; migrate.upgrade(get_settings().resolved_database_url)' && uvicorn namecraft_api.main:create_app --factory --host 0.0.0.0 --port 8000"]
+# import-data: 마이그레이션 + 출처 동기화 + Unihan(datasets/raw 에 있을 때) + 성씨 시드. 원천 파일이 없으면 경고 후 계속.
+CMD ["sh", "-c", "python scripts/tasks.py import-data || python scripts/tasks.py migrate; exec uvicorn namecraft_api.main:create_app --factory --host 0.0.0.0 --port 8000"]
