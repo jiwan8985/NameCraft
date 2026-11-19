@@ -397,50 +397,141 @@ class Task:
     group: str
     desc: str
     usage: str = ""
+    detail: str = ""  # nc help <명령> 에 보여줄 자세한 설명
+    examples: tuple[str, ...] = ()
 
 
 TASKS: dict[str, Task] = {
-    "install":         Task(install, "처음", "처음 한 번: 의존성 설치 + 한자 자료 받기 + DB 준비"),
-    "start":           Task(dev, "실행", "API + 웹 동시 실행 (종료: Ctrl+C)"),
-    "stop":            Task(stop, "실행", "남아 있는 이 프로젝트 서버(8000·3000) 종료"),
-    "open":            Task(open_web, "실행", "브라우저로 대시보드 열기"),
-    "status":          Task(status, "실행", "실행 상태·DB·데이터·AI 설정 요약"),
-    "backup-db":       Task(backup_db, "데이터", "DB 파일·업로드를 backups/ 에 복사"),
-    "migrate":         Task(migrate, "데이터", "DB 구조 업그레이드(Alembic)"),
-    "fetch-unihan":    Task(fetch_unihan, "데이터", "Unicode Unihan 원천 파일 받기"),
-    "import-data":     Task(import_data, "데이터", "출처·한자·성씨 데이터 적재(다시 실행해도 안전)"),
-    "import-official": Task(import_official, "데이터", "대법원 인명용 한자표(정규화 CSV) 적재", "<CSV경로>"),
-    "test":            Task(test, "검사", "전체 테스트(백엔드 + 웹 + 타입)"),
-    "test-api":        Task(test_api, "검사", "백엔드 테스트만 (pytest 옵션 전달 가능)", "[pytest 옵션]"),
-    "test-web":        Task(test_web, "검사", "웹 테스트 + 타입 검사"),
-    "test-security":   Task(test_security, "검사", "보안 테스트만"),
-    "build-web":       Task(build_web, "검사", "웹 프로덕션 빌드"),
-    "perf":            Task(perf, "검사", "성능 측정(DB 복사본 사용)"),
-    "audit":           Task(audit, "검사", "의존성 취약점 점검(npm·pip)"),
-    "docker-up":       Task(docker_up, "Docker", "Docker 로 실행(빌드 포함, 백그라운드)"),
-    "docker-down":     Task(docker_down, "Docker", "Docker 실행 종료"),
+    "install": Task(install, "처음", "처음 한 번: 의존성 설치 + 한자 자료 받기 + DB 준비",
+        detail="""처음 설치할 때 한 번 실행합니다. 순서대로:
+  1) Python 패키지(고정 버전)와 웹 패키지를 설치합니다.
+  2) Unicode Unihan 한자 자료(약 8MB)를 받습니다 — 이미 받았으면 건너뜁니다.
+  3) DB 를 만들고 한자 8,525자·성씨·출처 정보를 넣습니다.
+인터넷 연결이 필요하며 몇 분 걸릴 수 있습니다. 다시 실행해도 기존 프로젝트 데이터는 지워지지 않습니다.""",
+        examples=("nc install",)),
+    "start": Task(dev, "실행", "API + 웹 동시 실행 (종료: Ctrl+C)",
+        detail="""앱을 실행합니다. 실행되면 브라우저에서 http://127.0.0.1:3000 을 여세요(또는 다른 창에서 nc open).
+  · 끄기: 이 창에서 Ctrl+C
+  · 창을 그냥 닫았거나 '포트가 이미 사용 중' 이라고 나오면: nc stop 후 다시 nc start
+  · 이 PC 안에서만 열립니다(127.0.0.1). 다른 기기에서는 접속할 수 없습니다.
+  · 실행할 때마다 DB 구조를 최신으로 맞춥니다(migrate).""",
+        examples=("nc start",)),
+    "stop": Task(stop, "실행", "남아 있는 이 프로젝트 서버(8000·3000) 종료",
+        detail="""창을 닫았는데 서버가 계속 남아 있을 때 씁니다.
+포트 8000(API)·3000(웹)을 쓰는 프로그램 중 '이 프로젝트 폴더의 서버'만 골라 하위 프로세스까지 종료합니다.
+같은 포트를 쓰는 다른 프로그램은 건드리지 않고 알려만 줍니다.""",
+        examples=("nc stop",)),
+    "open": Task(open_web, "실행", "브라우저로 대시보드 열기",
+        detail="기본 브라우저로 http://127.0.0.1:3000/dashboard 를 엽니다. 서버가 꺼져 있으면 안내만 합니다.",
+        examples=("nc open",)),
+    "status": Task(status, "실행", "실행 상태·DB·데이터·AI 설정 요약",
+        detail="""지금 상태를 한눈에 보여줍니다(아무것도 바꾸지 않음).
+  · API·웹 실행 여부
+  · DB 위치·크기·구조 버전(리비전)
+  · 한자 수·성씨 수·공식 인명용 한자 규칙 수 (0건이면 한자 허용 여부는 '판정 불가')
+  · 프로젝트·후보·업로드 수
+  · AI(Ollama·Claude Code·Antigravity) 켜짐/꺼짐""",
+        examples=("nc status",)),
+    "backup-db": Task(backup_db, "데이터", "DB 파일·업로드를 backups/ 에 복사",
+        detail="""DB 파일과 업로드한 자료를 backups/<날짜-시각>/ 폴더에 복사합니다. 서버가 켜져 있어도 됩니다.
+  · 이름·출생정보가 들어 있는 평문 파일이므로 안전한 곳에 보관하세요.
+  · 되돌리기: nc stop → var/namecraft.db 와 var/uploads 를 백업 파일로 바꾸기 → nc start
+  · 화면의 '보고서 > 백업'(JSON)은 프로젝트 단위 백업, 이 명령은 파일 전체 백업입니다.""",
+        examples=("nc backup-db",)),
+    "migrate": Task(migrate, "데이터", "DB 구조 업그레이드(Alembic)",
+        detail="DB 구조를 최신 버전으로 맞춥니다. 프로그램을 업데이트한 뒤 실행하세요(nc start 도 자동으로 실행). 실행 전 nc backup-db 권장.",
+        examples=("nc migrate",)),
+    "fetch-unihan": Task(fetch_unihan, "데이터", "Unicode Unihan 원천 파일 받기",
+        detail="""unicode.org 에서 한자 자료(Unihan.zip)를 받아 datasets/raw/ 에 저장하고 체크섬을 보여줍니다.
+받은 뒤 nc import-data 로 DB 에 넣어야 반영됩니다. 개인 정보는 전송하지 않습니다.""",
+        examples=("nc fetch-unihan", "nc import-data")),
+    "import-data": Task(import_data, "데이터", "출처·한자·성씨 데이터 적재(다시 실행해도 안전)",
+        detail="""받아 둔 Unihan 자료와 성씨 시드를 DB 에 넣습니다. 같은 출처의 이전 데이터는 교체되고,
+프로젝트·후보 같은 사용자 데이터는 그대로 남습니다.""",
+        examples=("nc import-data",)),
+    "import-official": Task(import_official, "데이터", "대법원 인명용 한자표(정규화 CSV) 적재", "<CSV경로>",
+        detail="""대법원 인명용 한자표를 직접 검토해 만든 CSV 를 넣습니다. 이후 한자 후보가 '공식 확인 / 미수록'으로 판정됩니다.
+CSV 형식(UTF-8, 첫 줄은 머리글):
+    hanja,reading,effective_date,legal_basis
+    沈,심,2024-06-11,가족관계의 등록 등에 관한 규칙 제37조 별표
+  · hanja: 한자 한 글자 · reading: 허용 독음(한글) · effective_date: 고시·시행일 · legal_basis: 근거""",
+        examples=("nc import-official D:\\자료\\인명용한자.csv",)),
+    "test": Task(test, "검사", "전체 테스트(백엔드 + 웹 + 타입)",
+        detail="모든 자동 테스트를 실행합니다(몇 분 걸림). 마지막 줄의 summary 가 api·web 모두 PASS 면 정상입니다.",
+        examples=("nc test",)),
+    "test-api": Task(test_api, "검사", "백엔드 테스트만 (pytest 옵션 전달 가능)", "[pytest 옵션]",
+        detail="백엔드(pytest) 테스트만 실행합니다. 뒤에 붙인 옵션은 pytest 로 그대로 전달됩니다.",
+        examples=("nc test-api", "nc test-api -k saju", "nc test-api -m golden")),
+    "test-web": Task(test_web, "검사", "웹 테스트 + 타입 검사",
+        detail="웹 화면 컴포넌트 테스트(vitest)와 TypeScript 타입 검사를 실행합니다.", examples=("nc test-web",)),
+    "test-security": Task(test_security, "검사", "보안 테스트만",
+        detail="인증 누락·로그 개인정보·업로드·AI 출력 주입 등 보안 테스트만 실행합니다.", examples=("nc test-security",)),
+    "build-web": Task(build_web, "검사", "웹 프로덕션 빌드",
+        detail="배포용 웹 빌드를 만들어 오류가 없는지 확인합니다.", examples=("nc build-web",)),
+    "perf": Task(perf, "검사", "성능 측정(DB 복사본 사용)",
+        detail="""임시 서버와 DB 복사본으로 주요 작업 속도와 동시 요청 처리를 측정해 표로 보여줍니다.
+실제 데이터는 바뀌지 않습니다. 실행 중인 서버와 별개의 포트(8765)를 씁니다.""",
+        examples=("nc perf",)),
+    "audit": Task(audit, "검사", "의존성 취약점 점검(npm·pip)",
+        detail="웹(npm)과 Python(pip-audit) 패키지의 알려진 보안 취약점을 점검합니다. 인터넷 연결이 필요합니다.",
+        examples=("nc audit",)),
+    "docker-up": Task(docker_up, "Docker", "Docker 로 실행(빌드 포함, 백그라운드)",
+        detail="""Docker 가 설치된 경우 컨테이너로 실행합니다(이미지 빌드 포함). 데이터는 Docker 볼륨에 따로 저장되며
+nc start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: nc docker-down""",
+        examples=("nc docker-up", "nc docker-down")),
+    "docker-down": Task(docker_down, "Docker", "Docker 실행 종료",
+        detail="nc docker-up 으로 띄운 컨테이너를 종료합니다(데이터 볼륨은 남음).", examples=("nc docker-down",)),
+    "help": Task(lambda: help_(), "도움말", "이 목록 보기 / nc help <명령> 으로 자세히", "[명령]",
+        detail="명령 목록을 보여줍니다. 명령 이름을 붙이면 그 명령의 자세한 설명과 예시를 보여줍니다.",
+        examples=("nc help", "nc help start", "nc start --help")),
     # 하위 호환 별칭
-    "setup":           Task(setup, "기타", "의존성만 설치(pip + npm)"),
-    "dev":             Task(dev, "기타", "start 와 같음"),
-    "dev-api":         Task(dev_api, "기타", "API 만 실행"),
-    "dev-web":         Task(dev_web, "기타", "웹만 실행"),
+    "setup": Task(setup, "기타", "의존성만 설치(pip + npm)",
+        detail="Python·웹 패키지만 설치합니다(데이터는 건드리지 않음). 보통은 nc install 을 쓰세요.", examples=("nc setup",)),
+    "dev": Task(dev, "기타", "start 와 같음", detail="nc start 와 같습니다.", examples=("nc dev",)),
+    "dev-api": Task(dev_api, "기타", "API 만 실행", detail="API 서버(8000)만 실행합니다. 개발용.", examples=("nc dev-api",)),
+    "dev-web": Task(dev_web, "기타", "웹만 실행", detail="웹 서버(3000)만 실행합니다. 개발용.", examples=("nc dev-web",)),
 }
 
+GETTING_STARTED = """처음 시작하는 순서
+  1) nc install     설치와 데이터 준비 (처음 한 번)
+  2) nc start       앱 실행 — 브라우저에서 http://127.0.0.1:3000
+  3) 다 쓰면 그 창에서 Ctrl+C  (창을 닫았으면 nc stop)
+궁금할 때: nc status (상태) · nc help <명령> (자세한 설명)"""
 
-def help_() -> int:
+
+def help_(name: str | None = None) -> int:
+    name = name if name is not None else (sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == "help" else None)
+    if name:
+        t = TASKS.get(name)
+        if t is None:
+            near = [n for n in TASKS if name in n or n in name]
+            print(f"알 수 없는 명령: {name}" + (f" — 혹시: {', '.join(near)}" if near else ""))
+            print("전체 목록: nc help")
+            return 2
+        print(f"nc {name} {t.usage}".rstrip())
+        print(f"  {t.desc}\n")
+        if t.detail:
+            print(t.detail + "\n")
+        if t.examples:
+            print("예시:")
+            for e in t.examples:
+                print(f"  {e}")
+        return 0
     print(__doc__)
+    print(GETTING_STARTED)
     group = None
-    for name, t in TASKS.items():
+    for n, t in TASKS.items():
         if t.group != group:
             group = t.group
             print(f"\n[{group}]")
-        print(f"  nc {name:<16}{t.usage:<14}{t.desc}")
+        print(f"  nc {n:<16}{t.usage:<14}{t.desc}")
+    print("\n명령별 자세한 설명: nc help <명령>   예) nc help import-official")
     return 0
 
 
 def menu() -> int:
     items = [(n, t) for n, t in TASKS.items() if t.group != "기타"]
-    print("NameCraft AI — 실행할 작업 번호를 입력하세요 (엔터: 취소)\n")
+    print("NameCraft AI — 실행할 작업 번호를 입력하세요 (엔터: 취소, 번호 뒤에 ? 를 붙이면 설명만: 예 2?)\n")
     for i, (n, t) in enumerate(items, 1):
         print(f"  {i:>2}. {t.desc}  [nc {n}]")
     try:
@@ -449,10 +540,14 @@ def menu() -> int:
         return 0
     if not choice:
         return 0
+    explain = choice.endswith("?")
+    choice = choice.rstrip("?").strip()
     if not choice.isdigit() or not 1 <= int(choice) <= len(items):
         print("올바른 번호가 아닙니다.")
         return 2
     name, t = items[int(choice) - 1]
+    if explain or name == "help":
+        return help_(None if name == "help" else name)
     if t.usage.startswith("<"):
         value = input(f"{t.usage} 입력: ").strip()
         if not value:
@@ -465,11 +560,11 @@ def menu() -> int:
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] in ("menu",):
         sys.exit(menu())
-    if sys.argv[1] in ("help", "-h", "--help"):
+    if sys.argv[1] in ("help", "-h", "--help", "/?"):
         sys.exit(help_())
+    if any(a in ("-h", "--help", "/?") for a in sys.argv[2:]) and sys.argv[1] != "test-api":
+        sys.exit(help_(sys.argv[1]))
     task = TASKS.get(sys.argv[1])
     if task is None:
-        print(f"알 수 없는 명령: {sys.argv[1]}\n")
-        help_()
-        sys.exit(2)
+        sys.exit(help_(sys.argv[1]))
     sys.exit(task.fn())
