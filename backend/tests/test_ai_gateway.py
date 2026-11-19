@@ -253,3 +253,28 @@ def test_disabled_external_provider_needs_no_consent_and_sends_nothing(lexicon_s
                               ollama_url="http://127.0.0.1:9")
     assert r.provider_used == "rule_based" and {"provider": "claude_code", "result": "disabled"} in r.attempts
     assert not fake_cli["log"].exists()
+
+
+def test_wsl_autodetect_builds_wsl_command(monkeypatch):
+    from namecraft.ai_gateway import providers
+
+    monkeypatch.setattr(providers.shutil, "which", lambda name: None)
+    monkeypatch.setattr(providers, "wsl_lookup", lambda name: f"/home/u/.local/bin/{name}")
+    p = ClaudeCodeProvider(ProviderSettings())
+    assert p.resolved_command() == ["wsl.exe", "-e", "/home/u/.local/bin/claude"] and p.detected_via == "wsl"
+    p2 = ClaudeCodeProvider(ProviderSettings(command=["mycli"]))
+    assert p2.resolved_command() == ["mycli"] and p2.detected_via == "configured"  # 직접 지정이 우선
+
+
+def test_live_connection_test(lexicon_client, fake_cli):
+    c = lexicon_client
+    r = c.post("/api/v1/ai/providers/claude_code/test?live=true").json()["data"]
+    assert r["test_result"] in ("disabled",) or r["state"] == "not_installed"
+    c.patch("/api/v1/ai/preferences", json={"provider_id": "claude_code", "enabled": True, "command": fake_cli["command"]})
+    r = c.post("/api/v1/ai/providers/claude_code/test?live=true").json()
+    assert r["data"]["test_result"] == "ok" and r["data"]["test_names"] == ["지우"]
+    assert r["warnings"][0]["code"] == "live_test"
+    log = json.loads(fake_cli["log"].read_text(encoding="utf-8"))
+    assert "심" not in log["prompt"] and "birth" not in log["prompt"]  # 개인정보 없는 시험 요청
+    sess = c.get("/api/v1/ai/sessions").json()["data"]
+    assert sess[0]["execution_mode"] == "connection_test" and sess[0]["status"] == "success"

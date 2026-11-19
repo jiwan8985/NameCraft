@@ -170,6 +170,27 @@ class OllamaProvider:
 
 # ---------------------------------------------------------------- 구독형 CLI 공통
 
+_WSL_CACHE: dict[str, str | None] = {}
+
+
+def wsl_lookup(name: str) -> str | None:
+    """Windows 백엔드에서 WSL 안에 설치된 CLI 위치 확인 — WSL 로그인 셸의 PATH 로 `command -v` 만 실행.
+    (파일 시스템 탐색·인증 파일 접근 없음, 프로세스당 1회 캐시)"""
+    if name in _WSL_CACHE:
+        return _WSL_CACHE[name]
+    path = None
+    if os.name == "nt" and shutil.which("wsl.exe"):
+        try:
+            p = subprocess.run(["wsl.exe", "-e", "bash", "-lc", f"command -v {name}"], capture_output=True,
+                               text=True, timeout=15, stdin=subprocess.DEVNULL)  # 서버 워커는 stdin 이 없을 수 있음
+            out = p.stdout.strip().splitlines()
+            path = out[-1] if p.returncode == 0 and out and out[-1].startswith("/") else None
+        except (OSError, subprocess.TimeoutExpired):
+            path = None
+    _WSL_CACHE[name] = path
+    return path
+
+
 class _CliProvider:
     id: ProviderId
     label: str
@@ -177,12 +198,22 @@ class _CliProvider:
 
     def __init__(self, settings: ProviderSettings | None = None):
         self.s = settings or ProviderSettings()
+        self.detected_via: str | None = None
 
     def resolved_command(self) -> list[str] | None:
         if self.s.command:
+            self.detected_via = "configured"
             return list(self.s.command)
-        found = shutil.which(self.default_command)  # 현재 PATH 에서만 확인 (파일 시스템 탐색 안 함)
-        return [found] if found else None
+        found = shutil.which(self.default_command)  # 현재 PATH
+        if found:
+            self.detected_via = "path"
+            return [found]
+        wsl = wsl_lookup(self.default_command)  # Windows 에서 WSL 안에 설치된 경우
+        if wsl:
+            self.detected_via = "wsl"
+            return ["wsl.exe", "-e", wsl]
+        self.detected_via = None
+        return None
 
     def _run(self, args: list[str], *, stdin: str | None = None, timeout: float = 10) -> subprocess.CompletedProcess:
         cmd = self.resolved_command()
@@ -195,7 +226,8 @@ class _CliProvider:
         with tempfile.TemporaryDirectory(prefix="namecraft-ai-", ignore_cleanup_errors=True) as cwd:
             try:
                 return subprocess.run(full, input=stdin, capture_output=True, text=True, encoding="utf-8",
-                                      timeout=timeout, cwd=cwd, env=sanitized_env())
+                                      timeout=timeout, cwd=cwd, env=sanitized_env(),
+                                      **({} if stdin is not None else {"stdin": subprocess.DEVNULL}))
             except subprocess.TimeoutExpired as e:
                 raise ProviderCallError("timeout", f"{self.label} 응답 시간 초과") from e
             except OSError as e:
@@ -217,13 +249,15 @@ class _CliProvider:
                 "models": [], "command_configured": bool(self.s.command)}
         cmd = self.resolved_command()
         ver = self.version() if cmd else None
+        base["command"] = cmd
+        base["detected_via"] = self.detected_via
         if not cmd or not ver:
             return {**base, "state": ConnectionState.not_installed, "execution_mode": ExecutionMode.manual_handoff,
-                    "message": f"{self.label} CLI 를 이 서버 환경에서 찾지 못했습니다. 설정에서 실행 명령을 지정하거나 수동 전달을 사용하세요.",
+                    "message": f"{self.label} 이(가) 이 PC 에서 보이지 않습니다(Windows PATH·WSL 모두 확인). 설치되어 있다면 설정에서 실행 명령을 직접 지정하세요.",
                     "version": None}
         if not self.s.enabled:
             return {**base, "state": ConnectionState.disabled, "execution_mode": ExecutionMode.manual_handoff,
-                    "message": f"{self.label} {ver} 확인됨 — 실행 연동은 꺼져 있습니다(기본값). 켜면 공식 비대화형 모드만 사용합니다.",
+                    "message": f"{self.label} {ver} 찾음{' (WSL)' if self.detected_via == 'wsl' else ''} — 꺼져 있습니다. '사용하기'를 누르면 바로 쓸 수 있습니다.",
                     "version": ver}
         return {**base, "state": ConnectionState.connected, "execution_mode": ExecutionMode.supported_cli_task,
                 "message": f"{self.label} {ver} — 공식 비대화형 모드로 실행합니다(로그인·구독 한도는 해당 서비스 기준).",

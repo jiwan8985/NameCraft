@@ -2,37 +2,45 @@
 
 /* 디자인 토큰 — 라이트/다크 자동 전환 (기획서 §30.4). 상태색 의미 고정. */
 :root {
-  --background: oklch(0.985 0.002 75);
-  --foreground: oklch(0.2 0.01 60);
+  --background: oklch(0.985 0.004 270);
+  --foreground: oklch(0.22 0.02 270);
   --card: oklch(1 0 0);
-  --muted: oklch(0.95 0.004 75);
-  --muted-foreground: oklch(0.48 0.01 60);
-  --border: oklch(0.9 0.005 75);
-  --primary: oklch(0.32 0.03 160);
-  --primary-foreground: oklch(0.98 0 0);
-  --ok: oklch(0.52 0.12 155);
-  --warn: oklch(0.62 0.14 75);
-  --danger: oklch(0.55 0.18 27);
-  --info: oklch(0.52 0.1 250);
-  --mock: oklch(0.55 0.13 310);
-  --radius: 0.75rem;
+  --muted: oklch(0.965 0.006 270);
+  --muted-foreground: oklch(0.52 0.02 270);
+  --border: oklch(0.92 0.008 270);
+  --primary: oklch(0.58 0.16 278);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-soft: oklch(0.95 0.035 278);
+  --ok: oklch(0.6 0.12 165);
+  --ok-soft: oklch(0.95 0.04 165);
+  --warn: oklch(0.65 0.13 65);
+  --warn-soft: oklch(0.96 0.045 75);
+  --danger: oklch(0.6 0.17 20);
+  --danger-soft: oklch(0.95 0.035 20);
+  --info: oklch(0.6 0.11 240);
+  --mock: oklch(0.6 0.13 320);
+  --radius: 1rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: oklch(0.17 0.006 60);
-    --foreground: oklch(0.94 0.004 75);
-    --card: oklch(0.21 0.006 60);
-    --muted: oklch(0.25 0.006 60);
-    --muted-foreground: oklch(0.7 0.008 70);
-    --border: oklch(0.3 0.006 60);
-    --primary: oklch(0.78 0.08 160);
-    --primary-foreground: oklch(0.17 0.006 60);
-    --ok: oklch(0.72 0.13 155);
-    --warn: oklch(0.8 0.13 80);
-    --danger: oklch(0.7 0.16 27);
-    --info: oklch(0.72 0.1 250);
-    --mock: oklch(0.74 0.12 310);
+    --background: oklch(0.17 0.012 270);
+    --foreground: oklch(0.95 0.006 270);
+    --card: oklch(0.215 0.014 270);
+    --muted: oklch(0.26 0.014 270);
+    --muted-foreground: oklch(0.72 0.015 270);
+    --border: oklch(0.3 0.014 270);
+    --primary: oklch(0.74 0.12 278);
+    --primary-foreground: oklch(0.17 0.012 270);
+    --primary-soft: oklch(0.3 0.05 278);
+    --ok: oklch(0.76 0.12 165);
+    --ok-soft: oklch(0.3 0.05 165);
+    --warn: oklch(0.8 0.12 75);
+    --warn-soft: oklch(0.32 0.05 75);
+    --danger: oklch(0.74 0.14 20);
+    --danger-soft: oklch(0.32 0.05 20);
+    --info: oklch(0.74 0.1 240);
+    --mock: oklch(0.76 0.11 320);
   }
 }
 
@@ -45,18 +53,24 @@
   --color-border: var(--border);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger-soft: var(--danger-soft);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-info: var(--info);
   --color-mock: var(--mock);
   --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 :focus-visible {
@@ -66,7 +80,7 @@ body {
 
 /* 인쇄(보고서 PDF 저장): 사이드 메뉴 숨김, 흰 배경 */
 @media print {
-  aside, nav[aria-label="주요 메뉴"] { display: none !important; }
+  header[data-app-header], nav[aria-label="주요 메뉴"] { display: none !important; }
   body { background: #fff !important; color: #000 !important; }
   main { padding: 0 !important; }
 }

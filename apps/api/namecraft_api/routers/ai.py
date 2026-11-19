@@ -41,12 +41,51 @@ async def list_providers(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/providers/{provider}/test", response_model=Envelope[dict[str, Any]])
-async def test_provider(provider: str, request: Request, db: Session = Depends(get_db)):
+async def test_provider(provider: str, request: Request, live: bool = False, db: Session = Depends(get_db)):
+    """live=false: 읽기 전용 상태 확인(생성·한도 소모 없음). live=true: 개인정보 없는 짧은 실제 생성 1회."""
     if provider not in ProviderId.__members__:
         raise NotFound(f"알 수 없는 Provider: {provider}", details={"allowed": list(ProviderId.__members__)})
-    data = await _describe(_providers(request, db)[provider])
-    data["test_result"] = "status_only"  # 연결 확인은 읽기 전용(버전·모델 목록)만 — 생성 호출·한도 소모 없음
-    return envelope(data, verification_status=VerificationStatus.calculated)
+    p = _providers(request, db)[provider]
+    data = await _describe(p)
+    if not live:
+        data["test_result"] = "status_only"
+        return envelope(data, verification_status=VerificationStatus.calculated)
+    return envelope({**data, **_live_test(db, provider, p, data)}, verification_status=VerificationStatus.calculated,
+                    warnings=[{"code": "live_test", "message": "개인정보 없는 시험 요청 1회를 보냈습니다(구독형은 사용 한도가 조금 소모됩니다)."}])
+
+
+def _live_test(db: Session, provider: str, p, status: dict) -> dict:
+    import time as _t
+
+    from namecraft.ai_gateway.providers import ProviderCallError
+
+    if not status.get("enabled"):
+        return {"test_result": "disabled", "test_message": "먼저 '사용하기'를 눌러 켜세요."}
+    model = status.get("selected_model") if provider == "ollama" else p.s.model_id
+    if provider == "ollama" and not model:
+        return {"test_result": "no_model", "test_message": status.get("message")}
+    payload = {"sex": "n", "syllables": 2, "count": 3}  # 개인정보 없음
+    t = _t.monotonic()
+    try:
+        res = p.generate_text(aig.build_prompt(payload), system=aig.SYSTEM_PROMPT, json_schema=aig.CANDIDATES_SCHEMA,
+                              seed=1, model_id=model)
+    except ProviderCallError as e:
+        aig._record_invocation(db, provider, "connection_test", model, None, e.kind, None, None, None)
+        db.commit()
+        return {"test_result": e.kind, "test_message": str(e)}
+    ms = int((_t.monotonic() - t) * 1000)
+    try:
+        doc = aig.parse_ai_json(res.text)
+        v = aig.validate_candidates(db, doc, GenerateRequest(surname_hangul="김", name_type="any"))
+        result, names = "ok", [a["given_hangul"] for a in v["accepted"]]
+    except Exception:
+        result, names = "invalid_output", []
+    aig._record_invocation(db, provider, "connection_test", res.model_id, None,
+                           "success" if result == "ok" else "invalid_output", ms, res.tokens_in, res.tokens_out)
+    db.commit()
+    return {"test_result": result, "test_ms": ms, "test_model": res.model_id, "test_names": names,
+            "test_message": f"응답 {ms / 1000:.1f}초 · 검증 통과 이름: {', '.join(names) or '없음'}" if result == "ok"
+            else "응답은 왔지만 요구 형식(JSON)이 아니었습니다. 다른 모델을 골라 보세요."}
 
 
 class ProviderPrefIn(BaseModel):

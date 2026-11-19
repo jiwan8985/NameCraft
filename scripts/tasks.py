@@ -1,8 +1,9 @@
 """NameCraft AI 명령어 모음 (Windows/WSL/macOS 공용).
 
-짧게 쓰기: 저장소 루트에서  nc <명령>   (Windows: nc.cmd / PowerShell: .\\nc <명령>, WSL·macOS: ./nc <명령>)
-메뉴:      nc            (번호로 고르기)
-도움말:    nc help
+쓰는 법:   namecraft <명령>     (WSL·macOS 에서 처음이면 ./namecraft link 로 어디서나 쓰게 등록)
+           Windows: 폴더의 'NameCraft 시작.cmd' 더블클릭 = 실행 + 브라우저 열기
+메뉴:      namecraft            (번호로 고르기)
+도움말:    namecraft help
 직접 실행: <venv python> scripts/tasks.py <명령>
 """
 
@@ -54,7 +55,7 @@ def npm(*args: str) -> int:
 
 def arg(i: int, usage: str) -> str:
     if len(sys.argv) <= i:
-        sys.exit(f"사용법: nc {usage}")
+        sys.exit(f"사용법: namecraft {usage}")
     return sys.argv[i]
 
 
@@ -115,7 +116,7 @@ def import_data() -> int:
 
     raw = _raw_unihan()
     if raw is None:
-        sys.exit("Unihan 원천 파일이 없습니다. 먼저 `nc fetch-unihan` 을 실행하세요.")
+        sys.exit("Unihan 원천 파일이 없습니다. 먼저 `namecraft fetch-unihan` 을 실행하세요.")
     with _session() as s:
         print("sources:", sync_manifests(s))
         print("unihan:", import_unihan(s, raw))
@@ -178,12 +179,27 @@ def dev_web() -> int:
 def dev() -> int:
     busy = [p for p in (API_PORT, WEB_PORT) if _port_open(p)]
     if busy:
-        print(f"포트 {busy} 가 이미 사용 중입니다. 이전 서버가 남아 있으면 `nc stop` 을 먼저 실행하세요.")
+        print(f"포트 {busy} 가 이미 사용 중입니다. 이전 서버가 남아 있으면 `namecraft stop` 을 먼저 실행하세요.")
         return 1
     migrate()
     api = subprocess.Popen(API_CMD, cwd=ROOT, env=ENV)
     web = subprocess.Popen(node_bin("next/dist/bin/next") + WEB_CMD, cwd=WEB, env=ENV)
-    print(f"\n  웹: {WEB_URL}   (종료: Ctrl+C)\n", flush=True)
+    print(f"\n  웹: {WEB_URL}   (종료: Ctrl+C 또는 이 창 닫은 뒤 namecraft stop)\n", flush=True)
+    if "--open" in sys.argv[2:]:
+        import threading
+        import time
+        import urllib.request
+        import webbrowser
+
+        def _open_when_ready():
+            for _ in range(120):
+                try:
+                    urllib.request.urlopen(WEB_URL + "/dashboard", timeout=60)
+                    webbrowser.open(WEB_URL + "/dashboard")
+                    return
+                except Exception:
+                    time.sleep(1)
+        threading.Thread(target=_open_when_ready, daemon=True).start()
     try:
         return web.wait()
     except KeyboardInterrupt:
@@ -261,11 +277,29 @@ def stop() -> int:
     return 0
 
 
+def link() -> int:
+    """WSL·macOS·Linux: ~/.local/bin/namecraft 를 만들어 어느 폴더에서나 namecraft 로 실행."""
+    if os.name == "nt":
+        print("Windows 에서는 폴더의 'NameCraft 시작.cmd' 를 더블클릭하거나, 이 폴더에서 namecraft <명령> 을 쓰세요.")
+        return 0
+    target = Path.home() / ".local" / "bin" / "namecraft"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() or target.is_symlink():
+        target.unlink()
+    target.symlink_to(ROOT / "namecraft")
+    on_path = str(target.parent) in os.environ.get("PATH", "").split(os.pathsep)
+    print(f"등록했습니다: {target} → {ROOT / 'namecraft'}")
+    print("이제 어느 폴더에서나 'namecraft' 로 실행됩니다." if on_path
+          else f"{target.parent} 가 PATH 에 없습니다. ~/.bashrc 에 export PATH=\"$HOME/.local/bin:$PATH\" 를 추가하세요.")
+    print(f"해제: rm {target}")
+    return 0
+
+
 def open_web() -> int:
     import webbrowser
 
     if not _port_open(WEB_PORT):
-        print("웹 서버가 꺼져 있습니다. 먼저 `nc start` 를 실행하세요.")
+        print("웹 서버가 꺼져 있습니다. 먼저 `namecraft start` 를 실행하세요.")
         return 1
     webbrowser.open(WEB_URL + "/dashboard")
     return 0
@@ -291,7 +325,7 @@ def status() -> int:
     print(f"  웹   : {'실행 중 (' + WEB_URL + ')' if _port_open(WEB_PORT) else '꺼짐'}")
     db = st.var_dir / "namecraft.db"
     if not db.exists():
-        print("  DB   : 없음 — `nc install` 을 실행하세요.")
+        print("  DB   : 없음 — `namecraft install` 을 실행하세요.")
         return 0
     con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
     q = lambda sql: (con.execute(sql).fetchone() or [None])[0]  # noqa: E731
@@ -338,7 +372,7 @@ def backup_db() -> int:
         shutil.copytree(st.var_dir / "uploads", dest / "uploads")
     print(f"백업: {dest}")
     print("  · 이름·출생정보가 들어 있는 평문 파일입니다. 안전한 곳에 보관하세요.")
-    print("  · 되돌리려면: 서버를 끄고(`nc stop`) var/namecraft.db 와 var/uploads 를 이 파일들로 바꾸세요.")
+    print("  · 되돌리려면: 서버를 끄고(`namecraft stop`) var/namecraft.db 와 var/uploads 를 이 파일들로 바꾸세요.")
     return 0
 
 
@@ -397,7 +431,7 @@ class Task:
     group: str
     desc: str
     usage: str = ""
-    detail: str = ""  # nc help <명령> 에 보여줄 자세한 설명
+    detail: str = ""  # namecraft help <명령> 에 보여줄 자세한 설명
     examples: tuple[str, ...] = ()
 
 
@@ -408,22 +442,22 @@ TASKS: dict[str, Task] = {
   2) Unicode Unihan 한자 자료(약 8MB)를 받습니다 — 이미 받았으면 건너뜁니다.
   3) DB 를 만들고 한자 8,525자·성씨·출처 정보를 넣습니다.
 인터넷 연결이 필요하며 몇 분 걸릴 수 있습니다. 다시 실행해도 기존 프로젝트 데이터는 지워지지 않습니다.""",
-        examples=("nc install",)),
-    "start": Task(dev, "실행", "API + 웹 동시 실행 (종료: Ctrl+C)",
-        detail="""앱을 실행합니다. 실행되면 브라우저에서 http://127.0.0.1:3000 을 여세요(또는 다른 창에서 nc open).
+        examples=("namecraft install",)),
+    "start": Task(dev, "실행", "API + 웹 동시 실행 (--open: 브라우저도 열기)", "[--open]",
+        detail="""앱을 실행합니다. 실행되면 브라우저에서 http://127.0.0.1:3000 을 여세요(또는 다른 창에서 namecraft open).
   · 끄기: 이 창에서 Ctrl+C
-  · 창을 그냥 닫았거나 '포트가 이미 사용 중' 이라고 나오면: nc stop 후 다시 nc start
+  · 창을 그냥 닫았거나 '포트가 이미 사용 중' 이라고 나오면: namecraft stop 후 다시 namecraft start
   · 이 PC 안에서만 열립니다(127.0.0.1). 다른 기기에서는 접속할 수 없습니다.
   · 실행할 때마다 DB 구조를 최신으로 맞춥니다(migrate).""",
-        examples=("nc start",)),
+        examples=("namecraft start", "namecraft start --open")),
     "stop": Task(stop, "실행", "남아 있는 이 프로젝트 서버(8000·3000) 종료",
         detail="""창을 닫았는데 서버가 계속 남아 있을 때 씁니다.
 포트 8000(API)·3000(웹)을 쓰는 프로그램 중 '이 프로젝트 폴더의 서버'만 골라 하위 프로세스까지 종료합니다.
 같은 포트를 쓰는 다른 프로그램은 건드리지 않고 알려만 줍니다.""",
-        examples=("nc stop",)),
+        examples=("namecraft stop",)),
     "open": Task(open_web, "실행", "브라우저로 대시보드 열기",
         detail="기본 브라우저로 http://127.0.0.1:3000/dashboard 를 엽니다. 서버가 꺼져 있으면 안내만 합니다.",
-        examples=("nc open",)),
+        examples=("namecraft open",)),
     "status": Task(status, "실행", "실행 상태·DB·데이터·AI 설정 요약",
         detail="""지금 상태를 한눈에 보여줍니다(아무것도 바꾸지 않음).
   · API·웹 실행 여부
@@ -431,72 +465,79 @@ TASKS: dict[str, Task] = {
   · 한자 수·성씨 수·공식 인명용 한자 규칙 수 (0건이면 한자 허용 여부는 '판정 불가')
   · 프로젝트·후보·업로드 수
   · AI(Ollama·Claude Code·Antigravity) 켜짐/꺼짐""",
-        examples=("nc status",)),
+        examples=("namecraft status",)),
     "backup-db": Task(backup_db, "데이터", "DB 파일·업로드를 backups/ 에 복사",
         detail="""DB 파일과 업로드한 자료를 backups/<날짜-시각>/ 폴더에 복사합니다. 서버가 켜져 있어도 됩니다.
   · 이름·출생정보가 들어 있는 평문 파일이므로 안전한 곳에 보관하세요.
-  · 되돌리기: nc stop → var/namecraft.db 와 var/uploads 를 백업 파일로 바꾸기 → nc start
+  · 되돌리기: namecraft stop → var/namecraft.db 와 var/uploads 를 백업 파일로 바꾸기 → namecraft start
   · 화면의 '보고서 > 백업'(JSON)은 프로젝트 단위 백업, 이 명령은 파일 전체 백업입니다.""",
-        examples=("nc backup-db",)),
+        examples=("namecraft backup-db",)),
     "migrate": Task(migrate, "데이터", "DB 구조 업그레이드(Alembic)",
-        detail="DB 구조를 최신 버전으로 맞춥니다. 프로그램을 업데이트한 뒤 실행하세요(nc start 도 자동으로 실행). 실행 전 nc backup-db 권장.",
-        examples=("nc migrate",)),
+        detail="DB 구조를 최신 버전으로 맞춥니다. 프로그램을 업데이트한 뒤 실행하세요(namecraft start 도 자동으로 실행). 실행 전 namecraft backup-db 권장.",
+        examples=("namecraft migrate",)),
     "fetch-unihan": Task(fetch_unihan, "데이터", "Unicode Unihan 원천 파일 받기",
         detail="""unicode.org 에서 한자 자료(Unihan.zip)를 받아 datasets/raw/ 에 저장하고 체크섬을 보여줍니다.
-받은 뒤 nc import-data 로 DB 에 넣어야 반영됩니다. 개인 정보는 전송하지 않습니다.""",
-        examples=("nc fetch-unihan", "nc import-data")),
+받은 뒤 namecraft import-data 로 DB 에 넣어야 반영됩니다. 개인 정보는 전송하지 않습니다.""",
+        examples=("namecraft fetch-unihan", "namecraft import-data")),
     "import-data": Task(import_data, "데이터", "출처·한자·성씨 데이터 적재(다시 실행해도 안전)",
         detail="""받아 둔 Unihan 자료와 성씨 시드를 DB 에 넣습니다. 같은 출처의 이전 데이터는 교체되고,
 프로젝트·후보 같은 사용자 데이터는 그대로 남습니다.""",
-        examples=("nc import-data",)),
+        examples=("namecraft import-data",)),
     "import-official": Task(import_official, "데이터", "대법원 인명용 한자표(정규화 CSV) 적재", "<CSV경로>",
         detail="""대법원 인명용 한자표를 직접 검토해 만든 CSV 를 넣습니다. 이후 한자 후보가 '공식 확인 / 미수록'으로 판정됩니다.
 CSV 형식(UTF-8, 첫 줄은 머리글):
     hanja,reading,effective_date,legal_basis
     沈,심,2024-06-11,가족관계의 등록 등에 관한 규칙 제37조 별표
   · hanja: 한자 한 글자 · reading: 허용 독음(한글) · effective_date: 고시·시행일 · legal_basis: 근거""",
-        examples=("nc import-official D:\\자료\\인명용한자.csv",)),
+        examples=("namecraft import-official D:\\자료\\인명용한자.csv",)),
     "test": Task(test, "검사", "전체 테스트(백엔드 + 웹 + 타입)",
         detail="모든 자동 테스트를 실행합니다(몇 분 걸림). 마지막 줄의 summary 가 api·web 모두 PASS 면 정상입니다.",
-        examples=("nc test",)),
+        examples=("namecraft test",)),
     "test-api": Task(test_api, "검사", "백엔드 테스트만 (pytest 옵션 전달 가능)", "[pytest 옵션]",
         detail="백엔드(pytest) 테스트만 실행합니다. 뒤에 붙인 옵션은 pytest 로 그대로 전달됩니다.",
-        examples=("nc test-api", "nc test-api -k saju", "nc test-api -m golden")),
+        examples=("namecraft test-api", "namecraft test-api -k saju", "namecraft test-api -m golden")),
     "test-web": Task(test_web, "검사", "웹 테스트 + 타입 검사",
-        detail="웹 화면 컴포넌트 테스트(vitest)와 TypeScript 타입 검사를 실행합니다.", examples=("nc test-web",)),
+        detail="웹 화면 컴포넌트 테스트(vitest)와 TypeScript 타입 검사를 실행합니다.", examples=("namecraft test-web",)),
     "test-security": Task(test_security, "검사", "보안 테스트만",
-        detail="인증 누락·로그 개인정보·업로드·AI 출력 주입 등 보안 테스트만 실행합니다.", examples=("nc test-security",)),
+        detail="인증 누락·로그 개인정보·업로드·AI 출력 주입 등 보안 테스트만 실행합니다.", examples=("namecraft test-security",)),
     "build-web": Task(build_web, "검사", "웹 프로덕션 빌드",
-        detail="배포용 웹 빌드를 만들어 오류가 없는지 확인합니다.", examples=("nc build-web",)),
+        detail="배포용 웹 빌드를 만들어 오류가 없는지 확인합니다.", examples=("namecraft build-web",)),
     "perf": Task(perf, "검사", "성능 측정(DB 복사본 사용)",
         detail="""임시 서버와 DB 복사본으로 주요 작업 속도와 동시 요청 처리를 측정해 표로 보여줍니다.
 실제 데이터는 바뀌지 않습니다. 실행 중인 서버와 별개의 포트(8765)를 씁니다.""",
-        examples=("nc perf",)),
+        examples=("namecraft perf",)),
     "audit": Task(audit, "검사", "의존성 취약점 점검(npm·pip)",
         detail="웹(npm)과 Python(pip-audit) 패키지의 알려진 보안 취약점을 점검합니다. 인터넷 연결이 필요합니다.",
-        examples=("nc audit",)),
+        examples=("namecraft audit",)),
     "docker-up": Task(docker_up, "Docker", "Docker 로 실행(빌드 포함, 백그라운드)",
         detail="""Docker 가 설치된 경우 컨테이너로 실행합니다(이미지 빌드 포함). 데이터는 Docker 볼륨에 따로 저장되며
-nc start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: nc docker-down""",
-        examples=("nc docker-up", "nc docker-down")),
+namecraft start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: namecraft docker-down""",
+        examples=("namecraft docker-up", "namecraft docker-down")),
     "docker-down": Task(docker_down, "Docker", "Docker 실행 종료",
-        detail="nc docker-up 으로 띄운 컨테이너를 종료합니다(데이터 볼륨은 남음).", examples=("nc docker-down",)),
-    "help": Task(lambda: help_(), "도움말", "이 목록 보기 / nc help <명령> 으로 자세히", "[명령]",
+        detail="namecraft docker-up 으로 띄운 컨테이너를 종료합니다(데이터 볼륨은 남음).", examples=("namecraft docker-down",)),
+    "link": Task(link, "처음", "WSL·macOS: 어느 폴더에서나 namecraft 로 쓰게 등록",
+        detail="""~/.local/bin/namecraft 링크를 만들어, 프로젝트 폴더로 이동하지 않아도 namecraft 명령이 동작하게 합니다.
+리눅스 기본 명령과 이름이 겹치지 않습니다. 해제하려면 rm ~/.local/bin/namecraft""",
+        examples=("./namecraft link", "namecraft status")),
+    "help": Task(lambda: help_(), "도움말", "이 목록 보기 / namecraft help <명령> 으로 자세히", "[명령]",
         detail="명령 목록을 보여줍니다. 명령 이름을 붙이면 그 명령의 자세한 설명과 예시를 보여줍니다.",
-        examples=("nc help", "nc help start", "nc start --help")),
+        examples=("namecraft help", "namecraft help start", "namecraft start --help")),
     # 하위 호환 별칭
     "setup": Task(setup, "기타", "의존성만 설치(pip + npm)",
-        detail="Python·웹 패키지만 설치합니다(데이터는 건드리지 않음). 보통은 nc install 을 쓰세요.", examples=("nc setup",)),
-    "dev": Task(dev, "기타", "start 와 같음", detail="nc start 와 같습니다.", examples=("nc dev",)),
-    "dev-api": Task(dev_api, "기타", "API 만 실행", detail="API 서버(8000)만 실행합니다. 개발용.", examples=("nc dev-api",)),
-    "dev-web": Task(dev_web, "기타", "웹만 실행", detail="웹 서버(3000)만 실행합니다. 개발용.", examples=("nc dev-web",)),
+        detail="Python·웹 패키지만 설치합니다(데이터는 건드리지 않음). 보통은 namecraft install 을 쓰세요.", examples=("namecraft setup",)),
+    "dev": Task(dev, "기타", "start 와 같음", detail="namecraft start 와 같습니다.", examples=("namecraft dev",)),
+    "dev-api": Task(dev_api, "기타", "API 만 실행", detail="API 서버(8000)만 실행합니다. 개발용.", examples=("namecraft dev-api",)),
+    "dev-web": Task(dev_web, "기타", "웹만 실행", detail="웹 서버(3000)만 실행합니다. 개발용.", examples=("namecraft dev-web",)),
 }
 
 GETTING_STARTED = """처음 시작하는 순서
-  1) nc install     설치와 데이터 준비 (처음 한 번)
-  2) nc start       앱 실행 — 브라우저에서 http://127.0.0.1:3000
-  3) 다 쓰면 그 창에서 Ctrl+C  (창을 닫았으면 nc stop)
-궁금할 때: nc status (상태) · nc help <명령> (자세한 설명)"""
+  Windows : 폴더의 'NameCraft 시작.cmd' 더블클릭 (처음이면 자동으로 설치까지)
+  WSL·macOS:
+    1) ./namecraft install   설치와 데이터 준비 (처음 한 번)
+    2) ./namecraft link      어느 폴더에서나 namecraft 로 쓰게 등록 (처음 한 번)
+    3) namecraft start --open   앱 실행 + 브라우저 열기
+  다 쓰면 그 창에서 Ctrl+C  (창을 닫았으면 namecraft stop)
+궁금할 때: namecraft status (상태) · namecraft help <명령> (자세한 설명)"""
 
 
 def help_(name: str | None = None) -> int:
@@ -506,9 +547,9 @@ def help_(name: str | None = None) -> int:
         if t is None:
             near = [n for n in TASKS if name in n or n in name]
             print(f"알 수 없는 명령: {name}" + (f" — 혹시: {', '.join(near)}" if near else ""))
-            print("전체 목록: nc help")
+            print("전체 목록: namecraft help")
             return 2
-        print(f"nc {name} {t.usage}".rstrip())
+        print(f"namecraft {name} {t.usage}".rstrip())
         print(f"  {t.desc}\n")
         if t.detail:
             print(t.detail + "\n")
@@ -524,8 +565,8 @@ def help_(name: str | None = None) -> int:
         if t.group != group:
             group = t.group
             print(f"\n[{group}]")
-        print(f"  nc {n:<16}{t.usage:<14}{t.desc}")
-    print("\n명령별 자세한 설명: nc help <명령>   예) nc help import-official")
+        print(f"  namecraft {n:<16}{t.usage:<14}{t.desc}")
+    print("\n명령별 자세한 설명: namecraft help <명령>   예) namecraft help import-official")
     return 0
 
 
@@ -533,7 +574,7 @@ def menu() -> int:
     items = [(n, t) for n, t in TASKS.items() if t.group != "기타"]
     print("NameCraft AI — 실행할 작업 번호를 입력하세요 (엔터: 취소, 번호 뒤에 ? 를 붙이면 설명만: 예 2?)\n")
     for i, (n, t) in enumerate(items, 1):
-        print(f"  {i:>2}. {t.desc}  [nc {n}]")
+        print(f"  {i:>2}. {t.desc}  [namecraft {n}]")
     try:
         choice = input("\n번호: ").strip()
     except (EOFError, KeyboardInterrupt):

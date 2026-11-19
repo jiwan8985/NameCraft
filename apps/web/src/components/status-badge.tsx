@@ -32,7 +32,7 @@ export function StatusBadge({ status, className }: { status: string; className?:
   const s = STATUS[status] ?? { label: status, symbol: "·", tone: "text-muted-foreground border-border" };
   return (
     <span
-      className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", s.tone, className)}
+      className={cn("inline-flex items-center gap-1 rounded-full border bg-card/60 px-2 py-0.5 text-[11px] font-medium", s.tone, className)}
       data-status={status}
     >
       <span aria-hidden="true">{s.symbol}</span>

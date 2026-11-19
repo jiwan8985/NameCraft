@@ -14,11 +14,11 @@ export function useCandidates(projectId: string) {
 }
 
 export function ProjectNav({ projectId }: { projectId: string }) {
-  const links = [["recommendations", "추천"], ["scenario", "시나리오"], ["family", "가족 평가"], ["tournament", "토너먼트"], ["finalize", "결선"]];
+  const links = [["recommendations", "후보"], ["scenario", "출생 시각"], ["family", "가족 의견"], ["tournament", "1:1 고르기"], ["finalize", "최종 결정"], ["reports", "보고서"]];
   return (
-    <nav aria-label="프로젝트 메뉴" className="flex flex-wrap gap-2 text-sm">
+    <nav aria-label="프로젝트 메뉴" className="-mx-1 flex gap-1 overflow-x-auto rounded-full bg-muted p-1 text-sm">
       {links.map(([k, l]) => (
-        <Link key={k} className="rounded-md border border-border px-3 py-1 hover:bg-muted"
+        <Link key={k} className="shrink-0 rounded-full px-3.5 py-1.5 text-muted-foreground transition hover:bg-card hover:text-foreground"
               href={k === "recommendations" ? `/projects/${projectId}/recommendations` : `/${k}?project=${projectId}`}>{l}</Link>
       ))}
     </nav>

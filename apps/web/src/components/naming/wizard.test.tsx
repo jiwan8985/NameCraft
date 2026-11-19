@@ -15,6 +15,6 @@ describe("NewProjectWizard", () => {
     fireEvent.change(screen.getByLabelText("성씨 (한글)"), { target: { value: "심" } });
     fireEvent.click(next);
     expect(screen.getByText("원하는 느낌 (여러 개 선택)")).toBeInTheDocument();
-    expect(screen.getByText("고급 옵션")).toBeInTheDocument();
+    expect(screen.getByText(/고급 옵션/)).toBeInTheDocument();
   });
 });

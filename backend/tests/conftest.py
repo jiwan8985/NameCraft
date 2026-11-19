@@ -177,3 +177,11 @@ def fake_cli(tmp_path, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-not-leak")
     monkeypatch.setenv("GEMINI_API_KEY", "should-not-leak")
     return {"command": [_sys.executable, str(script)], "log": log}
+
+
+@pytest.fixture(autouse=True)
+def _no_wsl_autodetect(monkeypatch):
+    """테스트는 이 PC 의 WSL 설치 여부와 무관해야 한다(자동 탐지 끔)."""
+    from namecraft.ai_gateway import providers
+
+    monkeypatch.setattr(providers, "wsl_lookup", lambda name: None)

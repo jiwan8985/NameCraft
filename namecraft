@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# NameCraft AI 명령어 모음 — 사용: ./namecraft [명령]   (명령 없이 실행하면 메뉴, ./namecraft help 는 전체 목록)
+SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+ROOT="$(cd "$(dirname "$SELF")" && pwd)"
+
+# link: 어느 폴더에서나 namecraft 로 실행되게 ~/.local/bin 에 링크 (셸에서 직접 처리)
+if [ "$1" = "link" ]; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$ROOT/namecraft" "$HOME/.local/bin/namecraft"
+  echo "등록했습니다: $HOME/.local/bin/namecraft -> $ROOT/namecraft"
+  case ":$PATH:" in
+    *":$HOME/.local/bin:"*) echo "이제 어느 폴더에서나 'namecraft' 로 실행됩니다." ;;
+    *) echo "$HOME/.local/bin 이 PATH 에 없습니다. ~/.bashrc 에 export PATH=\"\$HOME/.local/bin:\$PATH\" 를 추가하세요." ;;
+  esac
+  echo "해제: rm $HOME/.local/bin/namecraft"
+  exit 0
+fi
+if [ -x "$ROOT/.venv/bin/python" ]; then
+  PY="$ROOT/.venv/bin/python"
+elif [ -x "$ROOT/.venv/Scripts/python.exe" ]; then
+  PY="$ROOT/.venv/Scripts/python.exe"   # WSL 에서 Windows 가상환경을 쓰는 경우
+  export PYTHONUTF8=1 WSLENV="${WSLENV:+$WSLENV:}PYTHONUTF8"
+  exec "$PY" "$(wslpath -w "$ROOT/scripts/tasks.py")" "$@"   # Windows python 은 /mnt/... 경로를 모름
+else
+  echo "[namecraft] 가상환경(.venv)이 없어 만듭니다..."
+  python3 -m venv "$ROOT/.venv" || { echo "[namecraft] Python 3.12 이상과 venv 모듈이 필요합니다."; exit 1; }
+  PY="$ROOT/.venv/bin/python"
+fi
+exec "$PY" "$ROOT/scripts/tasks.py" "$@"

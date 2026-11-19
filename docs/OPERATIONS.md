@@ -2,20 +2,20 @@
 
 > 개인용 로컬 실행 기준. 버전 1.0.0rc1.
 
-## 1. 설치·실행 — 명령어 모음 `nc`
+## 1. 설치·실행 — 명령어 모음 `namecraft`
 
-저장소 폴더에서 `nc <명령>`(명령 프롬프트) · `.\nc <명령>`(PowerShell) · `./nc <명령>`(WSL·macOS). 명령 없이 `nc` 는 번호 메뉴, `nc help` 는 전체 목록.
-실제 동작은 모두 `scripts/tasks.py` 에 있고 `nc.cmd`·`nc` 는 가상환경 python 으로 그것을 실행하는 얇은 실행 파일이다(가상환경이 없으면 만든다).
+저장소 폴더에서 `namecraft <명령>`(명령 프롬프트) · `.\namecraft <명령>`(PowerShell) · `./namecraft <명령>`(WSL·macOS). 명령 없이 `namecraft` 는 번호 메뉴, `namecraft help` 는 전체 목록.
+실제 동작은 모두 `scripts/tasks.py` 에 있고 `namecraft.cmd`·`namecraft` 는 가상환경 python 으로 그것을 실행하는 얇은 실행 파일이다(가상환경이 없으면 만든다).
 
 ```powershell
-nc install     # 의존성(pip 고정 버전 + npm ci) → Unihan 원천(없을 때만, 약 8MB) → DB 마이그레이션·데이터 적재
-nc start       # API 127.0.0.1:8000 + 웹 127.0.0.1:3000 (이미 포트를 쓰고 있으면 시작하지 않고 안내)
-nc stop        # 남은 이 프로젝트 서버만 종료(다른 프로그램은 건드리지 않음)
-nc status      # API·웹 실행 여부, DB 리비전·크기, 한자·성씨·공식 규칙 수, 프로젝트·후보·업로드 수, AI 켜짐/꺼짐
-nc open        # 브라우저로 대시보드
+namecraft install     # 의존성(pip 고정 버전 + npm ci) → Unihan 원천(없을 때만, 약 8MB) → DB 마이그레이션·데이터 적재
+namecraft start       # API 127.0.0.1:8000 + 웹 127.0.0.1:3000 (이미 포트를 쓰고 있으면 시작하지 않고 안내)
+namecraft stop        # 남은 이 프로젝트 서버만 종료(다른 프로그램은 건드리지 않음)
+namecraft status      # API·웹 실행 여부, DB 리비전·크기, 한자·성씨·공식 규칙 수, 프로젝트·후보·업로드 수, AI 켜짐/꺼짐
+namecraft open        # 브라우저로 대시보드
 ```
 
-- 웹: http://127.0.0.1:3000 · 종료: 터미널에서 Ctrl+C (창을 그냥 닫았으면 `nc stop`)
+- 웹: http://127.0.0.1:3000 · 종료: 터미널에서 Ctrl+C (창을 그냥 닫았으면 `namecraft stop`)
 - Docker(선택): `docker compose up --build` — 데이터는 `namecraft-var` 볼륨에 저장
 - 데이터 위치: `var/namecraft.db`(DB), `var/uploads/`(업로드), `var/local_token`(로컬 토큰). `var/` 는 Git 에 포함되지 않음.
 
@@ -23,10 +23,10 @@ nc open        # 브라우저로 대시보드
 
 | 작업 | 방법 |
 |---|---|
-| 공식 인명용 한자표 적재 | 대법원 자료를 검토해 정규화 CSV(`hanja,reading,effective_date,legal_basis`)로 만든 뒤 `nc import-official <파일>` |
-| Unihan 갱신 | `nc fetch-unihan` → `nc import-data` (기존 레코드 교체, 데이터 버전·체크섬 기록) |
+| 공식 인명용 한자표 적재 | 대법원 자료를 검토해 정규화 CSV(`hanja,reading,effective_date,legal_basis`)로 만든 뒤 `namecraft import-official <파일>` |
+| Unihan 갱신 | `namecraft fetch-unihan` → `namecraft import-data` (기존 레코드 교체, 데이터 버전·체크섬 기록) |
 | 프로젝트 백업 | 화면 `/reports` → 프로젝트 JSON / 전체 백업. 무결성 확인값 포함. 평문이므로 안전한 곳에 보관 |
-| 파일 백업 | `nc backup-db` → `backups/<시각>/`(DB 온라인 백업 + 업로드 폴더). 되돌리기: `nc stop` 후 `var/` 의 파일을 교체 |
+| 파일 백업 | `namecraft backup-db` → `backups/<시각>/`(DB 온라인 백업 + 업로드 폴더). 되돌리기: `namecraft stop` 후 `var/` 의 파일을 교체 |
 | 복원 | `/reports` → 복원(항상 새 프로젝트로, 변조 시 거부) |
 | 삭제 | 프로젝트 삭제 또는 `DELETE ALL` 입력 후 전체 사용자 데이터 삭제(참조 데이터는 유지) |
 | AI 사용량 기록 보존 | `/ai/settings` 보존 기간(기본 180일) → 지금 정리 |
@@ -34,8 +34,8 @@ nc open        # 브라우저로 대시보드
 
 ## 3. 업그레이드
 
-1. `nc backup-db` 로 백업 → 코드 갱신 → `nc setup`(의존성) → `nc migrate`(DB 스키마, Alembic).
-2. `nc test` 로 확인.
+1. `namecraft backup-db` 로 백업 → 코드 갱신 → `namecraft setup`(의존성) → `namecraft migrate`(DB 스키마, Alembic).
+2. `namecraft test` 로 확인.
 
 ## 4. AI 연결 (선택)
 
@@ -51,10 +51,10 @@ AI 를 모두 꺼도 생성·분석·비교·저장이 모두 동작한다.
 | 증상 | 확인 |
 |---|---|
 | 화면에 "API 서버에 연결할 수 없습니다" | API 가 실행 중인지(`http://127.0.0.1:8000/api/v1/health`), `var/local_token` 존재 여부 |
-| 헬스체크 `db_not_migrated` 경고 | `nc migrate` |
-| 한자 검색 결과 없음 | `nc status` 의 한자 수 확인 → 0 이면 `nc import-data` |
-| `nc start` 가 "포트가 이미 사용 중" | 이전 서버가 남은 것 — `nc stop` 후 다시 `nc start` |
-| 상태가 궁금할 때 | `nc status` |
+| 헬스체크 `db_not_migrated` 경고 | `namecraft migrate` |
+| 한자 검색 결과 없음 | `namecraft status` 의 한자 수 확인 → 0 이면 `namecraft import-data` |
+| `namecraft start` 가 "포트가 이미 사용 중" | 이전 서버가 남은 것 — `namecraft stop` 후 다시 `namecraft start` |
+| 상태가 궁금할 때 | `namecraft status` |
 | 출생신고 점검이 항상 '공식 재확인 필요' | 공식 인명용 한자표 미적재 — 정상 동작 |
 
 ## 6. 개인정보 원칙 (요약)

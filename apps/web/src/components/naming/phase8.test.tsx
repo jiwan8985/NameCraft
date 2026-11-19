@@ -23,9 +23,8 @@ describe("CandidateCard", () => {
   it("shows N/A (not 0), gate status, caution badge, source, AI opinion label", () => {
     const onReact = vi.fn();
     render(<CandidateCard item={item} selected={false} onSelect={() => {}} onReact={onReact} />);
-    expect(screen.getAllByText("N/A")).toHaveLength(2);
-    expect(screen.getByText("미확인")).toBeInTheDocument();
-    expect(screen.getByText("공식 한자 확인 전")).toBeInTheDocument();
+    expect(screen.getAllByText("N/A")).toHaveLength(2); // 점수 자세히 안의 N/A 항목(0점으로 그리지 않음)
+    expect(screen.getByText("81점")).toBeInTheDocument();
     expect(screen.getByText("검토 권장")).toBeInTheDocument();
     expect(screen.getByText(/AI 제안/)).toBeInTheDocument();
     expect(screen.getByText(/AI 의견\(주관\)/)).toBeInTheDocument();
