@@ -1,0 +1,205 @@
+# 실제로 쓰이는 한국 이름 사전 (SRC-DEV-GIVEN-NAMES) — 개발자 큐레이션
+# - 규칙 기반 생성은 이 목록 '안에서만' 고른다. 음절을 기계적으로 조합하지 않는다(어색한 이름 방지).
+# - 목적: 지금 태어나는 아기의 이름. 2015년 이후 신생아에게 자주 지어지는 이름과 순우리말 이름만 둔다
+#   (부모 세대 느낌의 이름 — 은정·선영·성훈·민호 등 — 은 넣지 않음). 개발자 지식 기반, 공식 통계 아님.
+# - sex: m(남아에 흔함) f(여아에 흔함) n(둘 다) — 사용자가 고른 성별에 맞춰 반대 성별 경향 이름은 빼고 고른다.
+# - style: modern(요즘 느낌) classic(단정·전통적) native(순우리말, 한글 이름)
+# - 순우리말(native) 이름과, 이름에 쓰는 좋은 뜻 한자가 없는 음절(예: 엘·루)이 들어간 이름은 한글 이름으로만 제안한다.
+# - trend: true = 최근(2020년대) 신생아 이름에서 특히 많이 보이는 '요즘 인기' 이름 — 화면에 표시하고, '요즘 느낌'을 고르면 우대.
+schema_version: 1
+status: developer_curated
+names:
+  # ── 여아에 흔한 이름 ─────────────────────────────
+  서연: {sex: f, style: modern}
+  서윤: {sex: f, style: modern}
+  서현: {sex: f, style: modern}
+  서아: {sex: f, style: modern, trend: true}
+  서하: {sex: f, style: modern}
+  지유: {sex: f, style: modern}
+  지아: {sex: f, style: modern}
+  지윤: {sex: f, style: modern}
+  지민: {sex: f, style: modern}
+  하은: {sex: f, style: modern}
+  하윤: {sex: f, style: modern}
+  하린: {sex: f, style: modern, trend: true}
+  하연: {sex: f, style: modern}
+  윤서: {sex: f, style: modern}
+  윤아: {sex: f, style: modern}
+  윤하: {sex: f, style: modern}
+  민서: {sex: f, style: modern}
+  채원: {sex: f, style: modern}
+  채은: {sex: f, style: modern}
+  채윤: {sex: f, style: modern}
+  채아: {sex: f, style: modern}
+  수아: {sex: f, style: modern}
+  수빈: {sex: f, style: modern}
+  수민: {sex: f, style: modern}
+  다은: {sex: f, style: modern}
+  다인: {sex: f, style: modern}
+  다연: {sex: f, style: modern}
+  다현: {sex: f, style: modern}
+  은서: {sex: f, style: modern}
+  은채: {sex: f, style: modern}
+  은비: {sex: f, style: modern}
+  예은: {sex: f, style: modern}
+  예린: {sex: f, style: modern}
+  예서: {sex: f, style: modern}
+  예원: {sex: f, style: modern}
+  예나: {sex: f, style: modern}
+  소율: {sex: f, style: modern}
+  소윤: {sex: f, style: modern}
+  소은: {sex: f, style: modern}
+  시은: {sex: f, style: modern}
+  시아: {sex: f, style: modern}
+  유나: {sex: f, style: modern}
+  유하: {sex: f, style: modern}
+  유주: {sex: f, style: modern}
+  가은: {sex: f, style: modern}
+  가윤: {sex: f, style: modern}
+  아린: {sex: f, style: modern}
+  아윤: {sex: f, style: modern, trend: true}
+  이서: {sex: f, style: modern, trend: true}
+  나은: {sex: f, style: modern}
+  주아: {sex: f, style: modern}
+  리아: {sex: f, style: modern}
+  세아: {sex: f, style: modern}
+  연서: {sex: f, style: modern}
+  혜린: {sex: f, style: modern}
+  현서: {sex: f, style: modern}
+  미소: {sex: f, style: modern}
+  도아: {sex: f, style: modern}
+  아인: {sex: f, style: modern, trend: true}
+  채이: {sex: f, style: modern, trend: true}
+  소이: {sex: f, style: modern, trend: true}
+  라희: {sex: f, style: modern}
+  # ── 남아에 흔한 이름 ─────────────────────────────
+  민준: {sex: m, style: modern}
+  민재: {sex: m, style: modern}
+  민규: {sex: m, style: classic}
+  서준: {sex: m, style: modern}
+  도윤: {sex: m, style: modern, trend: true}
+  도현: {sex: m, style: modern}
+  도하: {sex: m, style: modern, trend: true}
+  예준: {sex: m, style: modern}
+  시우: {sex: m, style: modern, trend: true}
+  시윤: {sex: m, style: modern}
+  시후: {sex: m, style: modern}
+  시원: {sex: m, style: classic}
+  하준: {sex: m, style: modern, trend: true}
+  하진: {sex: m, style: modern}
+  주원: {sex: m, style: modern}
+  지호: {sex: m, style: modern}
+  지후: {sex: m, style: modern}
+  지환: {sex: m, style: modern}
+  준우: {sex: m, style: modern}
+  준서: {sex: m, style: modern}
+  건우: {sex: m, style: modern}
+  현우: {sex: m, style: modern}
+  현준: {sex: m, style: modern}
+  우진: {sex: m, style: modern}
+  선우: {sex: m, style: modern, trend: true}
+  유준: {sex: m, style: modern}
+  유찬: {sex: m, style: modern}
+  정우: {sex: m, style: modern}
+  승우: {sex: m, style: modern}
+  승현: {sex: m, style: modern}
+  승민: {sex: m, style: modern}
+  은우: {sex: m, style: modern, trend: true}
+  은찬: {sex: m, style: modern}
+  윤우: {sex: m, style: modern}
+  이준: {sex: m, style: modern, trend: true}
+  진우: {sex: m, style: modern}
+  태윤: {sex: m, style: modern}
+  태민: {sex: m, style: modern}
+  태현: {sex: m, style: classic}
+  재윤: {sex: m, style: modern}
+  동윤: {sex: m, style: modern}
+  수호: {sex: m, style: modern}
+  로운: {sex: m, style: modern, trend: true}
+  서후: {sex: m, style: modern}
+  하겸: {sex: m, style: modern}
+  이한: {sex: m, style: modern}
+  이도: {sex: m, style: modern}
+  은호: {sex: m, style: modern}
+  도율: {sex: m, style: modern}
+  태오: {sex: m, style: modern}
+  우주: {sex: m, style: modern}
+  # ── 남녀 모두 쓰는 이름 ─────────────────────────
+  서우: {sex: n, style: modern, trend: true}
+  하온: {sex: n, style: modern, trend: true}
+  지온: {sex: n, style: modern, trend: true}
+  시안: {sex: n, style: modern, trend: true}
+  이현: {sex: n, style: modern, trend: true}
+  연우: {sex: n, style: modern, trend: true}
+  지원: {sex: n, style: classic}
+  지안: {sex: n, style: modern, trend: true}
+  유진: {sex: n, style: classic}
+  서진: {sex: n, style: modern}
+  서율: {sex: n, style: modern, trend: true}
+  하율: {sex: n, style: modern, trend: true}
+  이안: {sex: n, style: modern, trend: true}
+  수현: {sex: n, style: classic}
+  주하: {sex: n, style: modern}
+  시온: {sex: n, style: modern}
+  # ── 요즘 인기 이름 (2020년대) ───────────────────
+  로아: {sex: f, style: modern, trend: true}
+  서온: {sex: f, style: modern, trend: true}
+  은유: {sex: f, style: modern, trend: true}
+  하리: {sex: f, style: modern, trend: true}
+  라엘: {sex: f, style: modern, trend: true}
+  하엘: {sex: f, style: modern, trend: true}
+  이로: {sex: m, style: modern, trend: true}
+  지오: {sex: m, style: modern, trend: true}
+  한율: {sex: m, style: modern, trend: true}
+  시율: {sex: m, style: modern, trend: true}
+  윤호: {sex: m, style: modern, trend: true}
+  노아: {sex: m, style: modern, trend: true}
+  리안: {sex: n, style: modern, trend: true}
+  유안: {sex: n, style: modern, trend: true}
+  태이: {sex: n, style: modern, trend: true}
+  도이: {sex: n, style: modern, trend: true}
+  온유: {sex: n, style: modern, trend: true}
+  선율: {sex: n, style: modern, trend: true}
+  해온: {sex: n, style: modern, trend: true}
+  하루: {sex: n, style: modern, trend: true}
+  # ── 순우리말 이름 (한글 이름) ─────────────────────
+  하늘: {sex: n, style: native}
+  다온: {sex: n, style: native, trend: true}
+  라온: {sex: n, style: native, trend: true}
+  해솔: {sex: n, style: native}
+  윤슬: {sex: f, style: native, trend: true}
+  단비: {sex: f, style: native}
+  나래: {sex: f, style: native}
+  보람: {sex: n, style: native}
+  한결: {sex: m, style: native}
+  가람: {sex: m, style: native}
+  이든: {sex: m, style: native, trend: true}
+  아라: {sex: f, style: native}
+  소담: {sex: f, style: native}
+  다솜: {sex: f, style: native}
+  하랑: {sex: n, style: native}
+  누리: {sex: n, style: native}
+  새봄: {sex: f, style: native}
+  초롱: {sex: f, style: native}
+  가온: {sex: n, style: native}
+  미르: {sex: m, style: native}
+  이레: {sex: n, style: native}
+  다올: {sex: n, style: native}
+  예솔: {sex: f, style: native}
+  이솔: {sex: n, style: native}
+  여름: {sex: f, style: native, trend: true}
+  이음: {sex: n, style: native}
+  # ── 외자 (한 글자) ─────────────────────────────
+  윤: {sex: n, style: modern}
+  준: {sex: m, style: modern}
+  현: {sex: n, style: classic}
+  진: {sex: n, style: classic}
+  민: {sex: n, style: classic}
+  솔: {sex: n, style: native}
+  별: {sex: f, style: native}
+  결: {sex: m, style: native}
+  # ── 세 글자 (순우리말) ──────────────────────────
+  한가람: {sex: m, style: native}
+  아름솔: {sex: f, style: native}
+  빛나리: {sex: f, style: native}
+  하늘솔: {sex: n, style: native}

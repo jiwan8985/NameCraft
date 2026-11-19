@@ -1,6 +1,6 @@
 def test_generate_endpoint(lexicon_client):
     b = lexicon_client.post("/api/v1/names/generate", json={
-        "surname_hangul": "심", "surname_hanja": "沈", "sex": "f", "count": 5, "include_syllables": ["지"],
+        "surname_hangul": "심", "surname_hanja": "沈", "sex": "f", "count": 5,
         "liked_examples": ["심지아"], "style_tags": {"soft": 1}}).json()
     assert b["status"] == "ok" and len(b["data"]["on_hold"]) == 5
     assert {"rule_based_generation", "official_gate_on_hold"} <= {w["code"] for w in b["warnings"]}

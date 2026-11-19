@@ -74,7 +74,10 @@ def test_bridge_rejects_unknown_provider_commands_and_big_bodies(bridge):
                                                  "command": ["rm", "-rf", "/"], "args": ["--bare"]}, token=t)
     assert code == 200
     assert "--bare" not in json.loads(bridge["log"].read_text(encoding="utf-8"))["args"]
-    assert _req(bridge["url"], "/generate", raw=b"x" * (nb.MAX_BODY + 1), token=t)[0] == 413
+    try:  # 서버는 큰 본문을 읽지 않고 바로 거절한다 — OS 에 따라 클라이언트가 413 대신 연결 중단을 볼 수 있음
+        assert _req(bridge["url"], "/generate", raw=b"x" * (nb.MAX_BODY + 1), token=t)[0] == 413
+    except (ConnectionError, urllib.error.URLError):
+        pass
     assert _req(bridge["url"], "/generate", {"provider": "antigravity", "system": "s", "prompt": "p"}, token=t)[0] == 503
 
 

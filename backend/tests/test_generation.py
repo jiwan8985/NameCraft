@@ -56,10 +56,37 @@ def test_hard_filters(lexicon_session):
     assert r["stats"]["removed_by_hard_filter"]["fixed_syllable"] > 0
 
 
-def test_sex_is_preference_not_restriction(lexicon_session):
-    r = generate(lexicon_session, GenerateRequest(surname_hangul="김", sex="m", count=10, name_type="hangul",
-                                                  include_syllables=["아"]))
-    assert _all(r)  # 여성 경향 음절 '아'를 포함해도 제거되지 않음
+def test_sex_filters_opposite_tendency_names(lexicon_session):
+    from namecraft.services.name_dictionary import given_names
+
+    for sex, banned in (("m", "f"), ("f", "m")):
+        r = generate(lexicon_session, GenerateRequest(surname_hangul="김", sex=sex, count=40, name_type="any"))
+        assert _all(r) and all(given_names()[c["given_hangul"]]["sex"] != banned for c in _all(r))
+
+
+def test_only_real_dictionary_names_never_mechanical_combinations(lexicon_session):
+    """회귀: 예전 음절 조합 방식은 '라로', '로라(勞羅)', '하람(下濫)' 같은 이름을 만들었다."""
+    from namecraft.services.name_dictionary import given_names, name_hanja
+
+    good = {h for lst in name_hanja().values() for h, _ in lst}
+    for sex in ("m", "f", "n"):
+        for nt in ("hanja", "any", "hangul"):
+            r = generate(lexicon_session, GenerateRequest(surname_hangul="심", surname_hanja="沈", sex=sex, name_type=nt, count=30))
+            for c in _all(r):
+                assert c["given_hangul"] in given_names()
+                for s in c.get("hanja_suggestions") or []:
+                    assert set(s["hanja"]) <= good  # 좋은 뜻 큐레이션 한자만
+                    assert all(s["meanings"])  # 훈음 표시
+
+
+def test_hangul_only_names_have_no_hanja_and_trend_flag(lexicon_session):
+    r = generate(lexicon_session, GenerateRequest(surname_hangul="김", sex="f", name_type="any", count=200))
+    by = {c["given_hangul"]: c for c in _all(r)}
+    assert by["라엘"]["hanja_possible"] is False and by["라엘"]["trend"]  # 엘: 좋은 뜻 한자 없음 → 한글 이름
+    with_hanja = [c for c in by.values() if c.get("hanja_suggestions")]
+    assert with_hanja and all(c["hanja_suggestions"][0]["meanings"][0] for c in with_hanja)
+    hanja_only = generate(lexicon_session, GenerateRequest(surname_hangul="김", sex="f", name_type="hanja", count=200))
+    assert "라엘" not in {c["given_hangul"] for c in _all(hanja_only)}
 
 
 def test_hanja_names_require_name_reading_hanja_and_are_on_hold(lexicon_session):
@@ -73,10 +100,10 @@ def test_hanja_names_require_name_reading_hanja_and_are_on_hold(lexicon_session)
 def test_quarantine_exact_profanity(lexicon_session, monkeypatch):
     from namecraft.services import generation as g
 
-    lex = {"syllables": {"바": {"position": "first", "gender": "n", "tags": []},
-                         "보": {"position": "second", "gender": "n", "tags": []},
-                         "나": {"position": "second", "gender": "n", "tags": []}}, "native_names": []}
-    monkeypatch.setattr(g, "lexicon", lambda: lex)
+    from namecraft.services import name_dictionary as nd
+
+    names = {"바보": {"sex": "n", "style": "native", "rank": 0}, "바나": {"sex": "n", "style": "native", "rank": 1}}
+    monkeypatch.setattr(nd, "given_names", lambda: names)
     r = generate(lexicon_session, GenerateRequest(surname_hangul="김", name_type="hangul", count=5))
     assert [q["given_hangul"] for q in r["quarantined"]] == ["바보"]
     assert [c["given_hangul"] for c in _all(r)] == ["바나"]
@@ -86,7 +113,8 @@ def test_reverse_search_buckets_and_scores(lexicon_session):
     r = reverse_search(lexicon_session, given_hangul="지아", surname_hanja="沈")
     assert r["counts"]["passed"] == 0 and r["counts"]["on_hold"] > 0
     top = r["combinations"]["on_hold"][0]
-    assert set(top["components"]) == {"common_hanja", "no_meaning_caution", "luck81", "yinyang_balance"}
+    assert set(top["components"]) == {"name_hanja_fit", "common_hanja", "no_meaning_caution", "luck81", "yinyang_balance"}
+    assert top["components"]["name_hanja_fit"] is None  # 역검색(전체 한자)에서는 큐레이션 비중 없음
     assert top["traditional"]["status"] == "source_check_pending"
     # 뜻 주의 키워드(굶주릴 餓)가 있는 조합은 만점이 아니다
     for c in r["combinations"]["on_hold"]:

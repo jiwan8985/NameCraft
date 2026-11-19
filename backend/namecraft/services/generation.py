@@ -1,8 +1,9 @@
 """규칙 기반 이름 후보 생성 (기획서 §8.1 경로 1·2, §8.3, §8.4, REQ-GEN-001~004).
 
 경로
-  rule_based — 이름 음절 사전 조합 + 하드 필터 + 발음 규칙  (AI 없이 항상 동작)
-  data_based — 한글 이름 예시 목록 + 사용자가 좋아한 이름의 유사음 패턴 (공개 통계 미적재 → 제한적)
+  data_based — '실제로 쓰이는 이름 사전'(datasets/rules/given-names.yaml) 안에서만 고른다. AI 없이 항상 동작.
+               음절을 기계적으로 조합하지 않는다(2026-11-19 변경: '라로'·'로라(勞羅)' 같은 어색한 이름 제거).
+               한자는 '이름에 즐겨 쓰는 좋은 뜻 한자'(name-hanja.yaml) 안에서만 제안한다.
   ai_based   — Phase 7
 
 필터
@@ -28,7 +29,7 @@ from namecraft.domain.onomastics import analysis as la
 from namecraft.domain.text import is_hangul_syllable, normalize_name_text
 from namecraft.services.reverse_search import candidates_for_syllable, reverse_search
 
-GENERATOR_VERSION = "rule-gen-0.1.0"
+GENERATOR_VERSION = "dict-gen-1.0.0"
 SUGGEST_PER_SYLLABLE = 12  # 생성 결과의 한자 '제안'은 음절별 상위 12자 조합에서 — 전체 조합은 역검색 화면에서
 PRESCREEN_LIMIT = 4000  # 1단계(저비용 선호 점수) 통과 후보 수 상한 — 2단계에서 발음·주의 분석
 _SONORANT = set("ㅇㄴㄹㅁ")
@@ -92,24 +93,18 @@ def _strip_surname(name: str, surname: str) -> str:
 # ---------------------------------------------------------------- candidate pool
 
 def _pool(req: GenerateRequest) -> list[tuple[str, str]]:
-    lex = lexicon()
-    syl = lex["syllables"]
-    first = [s for s, v in syl.items() if v["position"] in ("first", "both")]
-    second = [s for s, v in syl.items() if v["position"] in ("second", "both")]
-    pool: list[tuple[str, str]] = []
-    if req.syllables == 1:
-        pool = [(s, "rule_based") for s in syl]
-    elif req.syllables == 2:
-        pool = [(a + b, "rule_based") for a in first for b in second if a != b]
-    else:
-        pool = [(a + m + b, "rule_based") for a in first for m in first + second for b in second
-                if len({a, m, b}) == 3]
-    pool += [(n, "data_based") for n in lex["native_names"] if len(n) == req.syllables]
-    seen, out = set(), []
-    for name, path in pool:
-        if name not in seen:
-            seen.add(name)
-            out.append((name, path))
+    """실제 이름 사전에서 음절 수·성별·이름 종류가 맞는 이름만 (사전 순서 = 흔한 순서에 가까움)."""
+    from namecraft.services.name_dictionary import given_names, is_hangul_only
+
+    out = []
+    for name, v in given_names().items():
+        if len(name) != req.syllables:
+            continue
+        if req.sex == "m" and v["sex"] == "f" or req.sex == "f" and v["sex"] == "m":
+            continue  # 고른 성별과 반대 경향의 이름은 제안하지 않음
+        if req.name_type == "hanja" and is_hangul_only(name):
+            continue
+        out.append((name, "data_based"))
     return out
 
 
@@ -131,18 +126,23 @@ def _hard_filter(given: str, req: GenerateRequest, surname: str) -> str | None:
 
 
 def _preference_score(given: str, req: GenerateRequest, liked: list[dict]) -> dict[str, Any]:
-    lex = lexicon()["syllables"]
-    comps: dict[str, float] = {}
-    # 성별 경향 (선호)
+    from namecraft.services.name_dictionary import given_names
+
+    info = given_names().get(given, {"sex": "n", "style": "modern", "rank": 999})
+    comps: dict[str, float] = {"commonness": max(0.0, 1 - info["rank"] / 400)}  # 사전 앞쪽(흔한 이름) 약간 우대
     if req.sex in ("m", "f"):
-        g = [lex.get(c, {}).get("gender", "n") for c in given]
-        comps["sex_tendency"] = sum(1.0 if x == req.sex else 0.5 if x == "n" else 0.0 for x in g) / len(g)
+        comps["sex_tendency"] = 1.0 if info["sex"] == req.sex else 0.7
+    if req.name_type == "hangul":
+        comps["native"] = 1.0 if info["style"] == "native" else 0.4
+    comps["trend"] = 1.0 if info.get("trend") else 0.5  # 신생아 이름 — 요즘 인기 이름 약간 우대
     feats = style_features(given)
     for tag, w in req.style_tags.items():
         if w <= 0:
             continue
-        if tag in ("modern", "traditional"):
-            comps[f"style_{tag}"] = sum(tag in lex.get(c, {}).get("tags", []) for c in given) / len(given)
+        if tag == "modern":
+            comps["style_modern"] = 1.0 if info["style"] in ("modern", "native") else 0.3
+        elif tag == "traditional":
+            comps["style_traditional"] = 1.0 if info["style"] == "classic" else 0.3
         elif tag == "soft":
             comps["style_soft"] = (feats["softness"] + feats["open_ratio"]) / 2
         elif tag == "bright":
@@ -228,8 +228,13 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
                >= req.diversity_threshold for s in selected):
             skipped_diversity += 1
             continue
-        if req.name_type in ("hanja", "any"):
-            ok = all(hanja_cache.setdefault(c, bool(candidates_for_syllable(session, c, limit=1, cache=syl_cache)))
+        from namecraft.services.name_dictionary import is_hangul_only, is_trend
+
+        cand["trend"] = is_trend(g)
+        native = is_hangul_only(g)
+        if req.name_type in ("hanja", "any") and not native:
+            ok = all(hanja_cache.setdefault(c, bool(candidates_for_syllable(session, c, limit=1, cache=syl_cache,
+                                                                            curated_only=True)))
                      for c in g)
             if req.name_type == "hanja" and not ok:
                 skipped_no_hanja += 1
@@ -240,7 +245,7 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
                 rs = reverse_search(session, given_hangul=g, surname_hanja=req.surname_hanja,
                                     fixed=req.fixed_hanja, exclude_hanja=req.exclude_hanja,
                                     use_traditional=req.use_traditional, limit=3,
-                                    max_per_syllable=SUGGEST_PER_SYLLABLE, cache=syl_cache)
+                                    max_per_syllable=SUGGEST_PER_SYLLABLE, cache=syl_cache, curated_only=True)
                 cand["hanja_suggestions"] = rs["combinations"]["passed"] or rs["combinations"]["on_hold"]
                 cand["hanja_counts"] = rs["counts"]
                 if cand["hanja_suggestions"]:
@@ -251,7 +256,7 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
                 else:
                     cand["hanja_possible"] = False
         else:
-            cand["hanja_possible"] = None
+            cand["hanja_possible"] = None if req.name_type == "hangul" else False  # 한글 이름으로만 제안
             cand["official_gate"] = "not_required"  # 한글 이름은 인명용 한자 판정 대상 아님
         first_count[g[0]] = first_count.get(g[0], 0) + 1
         last_count[g[-1]] = last_count.get(g[-1], 0) + 1
@@ -261,8 +266,7 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
     passed = [c for c in selected if c.get("official_gate") in ("pass", "not_required")]
     return {
         "generator_version": GENERATOR_VERSION,
-        "paths": {"rule_based": "enabled", "data_based": "limited (공개 이름 통계 미적재 — 한글 이름 예시·좋아한 이름 유사음만)",
-                  "ai_based": "not_requested"},
+        "paths": {"data_based": "enabled (실제로 쓰이는 이름 사전)", "ai_based": "not_requested"},
         "passed": passed, "on_hold": on_hold,
         "quarantined": quarantined[:50],
         "stats": {"pool": len(pool), "removed_by_hard_filter": removed, "prescreen_cut": prescreen_cut,

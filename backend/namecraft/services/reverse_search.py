@@ -28,7 +28,8 @@ from namecraft.services.lexicon import (
 
 MAX_PER_SYLLABLE = 40
 MAX_COMBINATIONS = 20000
-DEFAULT_WEIGHTS = {"common_hanja": 0.35, "no_meaning_caution": 0.25, "luck81": 0.25, "yinyang_balance": 0.15}
+DEFAULT_WEIGHTS = {"name_hanja_fit": 1.0, "common_hanja": 0.35, "no_meaning_caution": 0.25, "luck81": 0.25,
+                   "yinyang_balance": 0.15}
 
 
 class ReverseSearchError(ValueError):
@@ -48,6 +49,8 @@ class HanjaInfo:
     caution: list[str]
     official: str
     is_compat: bool
+    meaning_ko: str | None = None  # 큐레이션된 훈음(예: '상서로울 서')
+    curated_fit: float | None = None  # 큐레이션 목록 안 순위(1=가장 흔히 쓰는 좋은 뜻), 큐레이션 밖이면 None
 
     @property
     def jawon(self) -> str | None:
@@ -57,7 +60,7 @@ class HanjaInfo:
         return {"char": self.char, "codepoint": self.codepoint, "reading": self.reading,
                 "original_strokes": self.original, "modern_strokes": self.modern,
                 "education_hanja": self.education, "definition_en": self.definition_en,
-                "meaning_caution": self.caution, "official_status": self.official,
+                "meaning_caution": self.caution, "official_status": self.official, "meaning_ko": self.meaning_ko,
                 "jawon": self.jawon, "is_compatibility": self.is_compat}
 
 
@@ -70,16 +73,25 @@ def _radical(rs: str | None) -> int | None:
 
 def candidates_for_syllable(session: Session, syllable: str, *, exclude_hanja: set[str] = frozenset(),
                             include_compat: bool = False, limit: int = MAX_PER_SYLLABLE,
-                            cache: dict | None = None) -> list[HanjaInfo]:
-    """cache: 한 요청 안에서만 쓰는 메모(요청 간 공유하지 않음 — 공식 자료 갱신 즉시 반영)."""
-    key = (syllable, frozenset(exclude_hanja), include_compat)
+                            cache: dict | None = None, curated_only: bool = False) -> list[HanjaInfo]:
+    """cache: 한 요청 안에서만 쓰는 메모(요청 간 공유하지 않음 — 공식 자료 갱신 즉시 반영).
+    curated_only: 이름에 즐겨 쓰는 좋은 뜻 한자(큐레이션)만, 그 목록 순서대로."""
+    from namecraft.services.name_dictionary import curated_chars, meaning_ko
+
+    key = (syllable, frozenset(exclude_hanja), include_compat, curated_only)
     if cache is not None and key in cache:
         return cache[key][:limit]
-    rows = [ch for ch in session.scalars(
-        select(HanjaCharacter).join(HanjaReading, HanjaReading.codepoint == HanjaCharacter.codepoint)
-        .where(HanjaReading.reading == syllable, HanjaReading.is_name_reading.is_(True))
-        .distinct()).all()
-        if ch.char not in exclude_hanja and (include_compat or not ch.is_compatibility)]
+    if curated_only:
+        order = curated_chars(session, syllable, set(exclude_hanja))
+        by_char = {ch.char: ch for ch in session.scalars(
+            select(HanjaCharacter).where(HanjaCharacter.codepoint.in_([codepoint(c) for c in order])))}
+        rows = [by_char[c] for c in order if c in by_char]
+    else:
+        rows = [ch for ch in session.scalars(
+            select(HanjaCharacter).join(HanjaReading, HanjaReading.codepoint == HanjaCharacter.codepoint)
+            .where(HanjaReading.reading == syllable, HanjaReading.is_name_reading.is_(True))
+            .distinct()).all()
+            if ch.char not in exclude_hanja and (include_compat or not ch.is_compatibility)]
     cps = [ch.codepoint for ch in rows]
     strokes = stroke_maps(session, cps)
     official = official_statuses(session, cps, syllable)
@@ -89,9 +101,13 @@ def candidates_for_syllable(session: Session, syllable: str, *, exclude_hanja: s
         st = strokes.get(ch.codepoint, {})
         out.append(HanjaInfo(ch.char, ch.codepoint, syllable, st.get("original"), st.get("modern"),
                              bool(ch.unihan_korean_education), _radical(ch.radical_stroke), ch.definition_en,
-                             mr["caution_keywords"], official[ch.codepoint], ch.is_compatibility))
-    # 교육용 한자 우선, 주의 키워드 없는 글자 우선, 획수 적당(≤ 20) 우선, 코드포인트로 안정 정렬
-    out.sort(key=lambda h: (not h.education, bool(h.caution), (h.original or 99) > 20, h.codepoint))
+                             mr["caution_keywords"], official[ch.codepoint], ch.is_compatibility,
+                             meaning_ko(ch.char, syllable),
+                             (1 - order.index(ch.char) / max(len(order), 1)) if curated_only else None))
+    if not curated_only:
+        # 교육용 한자 우선, 주의 키워드 없는 글자 우선, 획수 적당(≤ 20) 우선, 코드포인트로 안정 정렬
+        out.sort(key=lambda h: (h.meaning_ko is None, not h.education, bool(h.caution), (h.original or 99) > 20,
+                                h.codepoint))
     if cache is not None:
         cache[key] = out
     return out[:limit]
@@ -115,7 +131,10 @@ def _bucket(chars: list[HanjaInfo]) -> str:
 
 def score_combination(chars: list[HanjaInfo], surname_strokes: list[int] | None, weights: dict[str, float],
                       use_traditional: bool) -> dict[str, Any]:
+    fits = [c.curated_fit for c in chars]
     comps: dict[str, float | None] = {
+        # 이름에 즐겨 쓰는 좋은 뜻 한자 순위 — 생성 후보의 한자 고르기에서 가장 큰 비중
+        "name_hanja_fit": None if None in fits else sum(fits) / len(fits),  # type: ignore[arg-type]
         "common_hanja": sum(c.education for c in chars) / len(chars),
         "no_meaning_caution": 0.0 if any(c.caution for c in chars) else 1.0,
         "luck81": None, "yinyang_balance": None,
@@ -135,7 +154,7 @@ def score_combination(chars: list[HanjaInfo], surname_strokes: list[int] | None,
     used = {k: w for k, w in weights.items() if comps.get(k) is not None and w > 0}
     total_w = sum(used.values())
     score = round(sum(comps[k] * w for k, w in used.items()) / total_w * 100, 1) if total_w else None  # type: ignore[operator]
-    missing = [k for k, w in weights.items() if w > 0 and comps.get(k) is None]
+    missing = [k for k, w in weights.items() if w > 0 and comps.get(k) is None and k != "name_hanja_fit"]
     return {"optimization_score": score, "components": comps, "weights_used": used,
             "not_available": missing, "traditional": trad or None}
 
@@ -144,7 +163,7 @@ def reverse_search(session: Session, *, given_hangul: str, surname_hanja: str | 
                    fixed: dict[int, str] | None = None, exclude_hanja: list[str] | None = None,
                    weights: dict[str, float] | None = None, use_traditional: bool = True,
                    include_compat: bool = False, limit: int = 30, max_per_syllable: int = MAX_PER_SYLLABLE,
-                   cache: dict | None = None) -> dict[str, Any]:
+                   cache: dict | None = None, curated_only: bool = False) -> dict[str, Any]:
     given = normalize_name_text(given_hangul)
     if not given or len(given) > 4 or not all(is_hangul_syllable(c) for c in given):
         raise ReverseSearchError("한글 이름(1~4자)이 필요합니다.")
@@ -157,7 +176,7 @@ def reverse_search(session: Session, *, given_hangul: str, surname_hanja: str | 
     per_syllable: list[list[HanjaInfo]] = []
     for i, syl in enumerate(given):
         cands = candidates_for_syllable(session, syl, exclude_hanja=excl, include_compat=include_compat,
-                                        limit=max_per_syllable, cache=cache)
+                                        limit=max_per_syllable, cache=cache, curated_only=curated_only)
         if i in fixed:
             cands = [c for c in cands if c.char == fixed[i]] or _fixed_lookup(session, fixed[i], syl)
         per_syllable.append(cands)
@@ -178,6 +197,7 @@ def reverse_search(session: Session, *, given_hangul: str, surname_hanja: str | 
         s = score_combination(chars, s_strokes, weights, use_traditional)
         bucket = _bucket(chars)
         buckets[bucket].append({"hanja": "".join(c.char for c in chars), "chars": [c.char for c in chars],
+                                "meanings": [c.meaning_ko for c in chars],
                                 "bucket": bucket, **s})
     for b in buckets.values():
         b.sort(key=lambda x: (-(x["optimization_score"] or 0), x["hanja"]))
