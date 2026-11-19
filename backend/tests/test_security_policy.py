@@ -14,7 +14,7 @@ pytestmark = pytest.mark.security
 
 PAID_API_KEYS = re.compile(r"(ANTHROPIC_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY|OPENAI_API_KEY|VERTEX)", re.I)
 FORBIDDEN_CLI_FLAGS = ("--bare", "--dangerously-skip-permissions", "--allow-dangerously-skip-permissions")
-CODE_DIRS = ("backend/namecraft", "apps/api", "apps/web/src")
+CODE_DIRS = ("backend/namecraft", "apps/api", "apps/web/src", "bridge")
 
 
 def _code_files(root: Path):

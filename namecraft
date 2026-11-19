@@ -3,6 +3,12 @@
 SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 ROOT="$(cd "$(dirname "$SELF")" && pwd)"
 
+# bridge: 연결 브리지는 표준 라이브러리만 쓰므로 이 컴퓨터의 python3 로 직접 실행(WSL 안의 CLI 를 그대로 사용)
+if [ "$1" = "bridge" ]; then
+  shift
+  exec python3 "$ROOT/bridge/namecraft_bridge.py" "$@"
+fi
+
 # link: 어느 폴더에서나 namecraft 로 실행되게 ~/.local/bin 에 링크 (셸에서 직접 처리)
 if [ "$1" = "link" ]; then
   mkdir -p "$HOME/.local/bin"

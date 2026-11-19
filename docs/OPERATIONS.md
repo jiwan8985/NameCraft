@@ -42,7 +42,10 @@ namecraft open        # 브라우저로 대시보드
 | Provider | 설정 |
 |---|---|
 | Ollama | `/settings` 에서 사용하기 + 모델 이름. 생성 모델이 필요(임베딩 전용 모델은 생성 불가). 주소는 로컬만 허용 |
-| Claude Code / Antigravity | 기본 꺼짐. 켜려면 `/settings` 에서 실행 명령 지정(예: `wsl.exe -e /home/<사용자>/.local/bin/claude`) 후 사용하기. 구독 한도를 사용하며 외부 전송 전 동의 창이 뜸. 각 서비스 약관은 사용자가 확인 |
+| Claude Code / Antigravity — 이 PC | 기본 꺼짐. Windows PATH 또는 WSL 에 설치돼 있으면 자동으로 찾음 → `/settings` 에서 **사용하기 → 연결 시험** |
+| Claude Code / Antigravity — 연결 브리지 | CLI 가 다른 곳(WSL·다른 PC)에 있을 때. 그 컴퓨터에서 `namecraft bridge`(다른 PC 는 `bridge/namecraft_bridge.py` 파일만 복사해 `python3 namecraft_bridge.py --lan`) → 화면의 주소·토큰을 `/settings` › 연결 방식 '연결 브리지' 에 입력 → 사용하기 → 연결 시험. 브리지는 정해진 두 CLI 만 실행하고 토큰 없는 요청을 거부. 다른 PC 연결은 같은 네트워크에서만 |
+
+구독 한도를 사용하며, 이름 생성 시 보낼 내용을 먼저 보여 주고 동의를 받는다. 각 서비스 약관은 사용자가 확인한다.
 
 AI 를 모두 꺼도 생성·분석·비교·저장이 모두 동작한다.
 

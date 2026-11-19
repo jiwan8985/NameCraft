@@ -68,6 +68,9 @@ class ProviderSettings:
     model_id: str | None = None
     timeout_s: int = 120
     base_url: str = "http://127.0.0.1:11434"  # Ollama
+    connection: str = "local"  # local | bridge (Claude Code·Antigravity)
+    bridge_url: str | None = None
+    bridge_token: str | None = None
 
 
 # ---------------------------------------------------------------- Ollama
@@ -243,10 +246,57 @@ class _CliProvider:
     async def connection_status(self) -> dict[str, Any]:
         return self.status()
 
+    # ------------------------------------------------------------ 연결 브리지
+    def _bridge(self, method: str, path: str, body: dict | None = None, timeout: float = 10) -> dict:
+        if not self.s.bridge_url or not self.s.bridge_token:
+            raise ProviderCallError("unavailable", "브리지 주소와 토큰을 설정하세요.")
+        req = urllib.request.Request(self.s.bridge_url.rstrip("/") + path, method=method,
+                                     data=json.dumps(body).encode() if body is not None else None,
+                                     headers={"Authorization": f"Bearer {self.s.bridge_token}",
+                                              "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                err = json.loads(e.read()).get("error", "")
+            except Exception:
+                err = ""
+            kind = {401: "auth_required", 429: "rate_limited" if err == "rate_limited" else "busy",
+                    504: "timeout"}.get(e.code, "unavailable" if err in ("unavailable", "auth_required") else "process_error")
+            msg = {"unauthorized": "브리지 토큰이 맞지 않습니다.", "auth_required": "브리지 쪽 컴퓨터에서 CLI 로그인이 필요합니다.",
+                   "busy": "브리지가 다른 요청을 처리 중입니다.", "rate_limited": f"{self.label} 사용 한도에 도달했습니다.",
+                   "unavailable": f"브리지 쪽 컴퓨터에서 {self.label} 를 찾지 못했습니다."}.get(err, f"브리지 오류({e.code})")
+            raise ProviderCallError(kind, msg) from e
+        except (urllib.error.URLError, OSError, TimeoutError) as e:
+            raise ProviderCallError("unavailable", "브리지에 연결할 수 없습니다. 브리지가 실행 중인지, 주소가 맞는지 확인하세요.") from e
+
+    def _bridge_status(self, base: dict) -> dict[str, Any]:
+        base = {**base, "connection": "bridge", "bridge_url": self.s.bridge_url,
+                "bridge_token_set": bool(self.s.bridge_token), "command": None, "detected_via": "bridge"}
+        try:
+            info = self._bridge("GET", "/health", timeout=8)
+        except ProviderCallError as e:
+            return {**base, "state": ConnectionState.not_installed if e.kind == "unavailable" else ConnectionState.auth_required,
+                    "execution_mode": ExecutionMode.manual_handoff, "message": str(e), "version": None}
+        mine = (info.get("providers") or {}).get(self.id.value) or {}
+        if not mine.get("found"):
+            return {**base, "state": ConnectionState.not_installed, "execution_mode": ExecutionMode.manual_handoff,
+                    "message": f"브리지에 연결됐지만 그쪽 컴퓨터에 {self.label} 가 없습니다.", "version": None}
+        ver = mine.get("version")
+        if not self.s.enabled:
+            return {**base, "state": ConnectionState.disabled, "execution_mode": ExecutionMode.manual_handoff,
+                    "message": f"브리지로 {self.label} {ver} 찾음 — 꺼져 있습니다. '사용하기'를 누르면 바로 쓸 수 있습니다.",
+                    "version": ver}
+        return {**base, "state": ConnectionState.connected, "execution_mode": ExecutionMode.supported_cli_task,
+                "message": f"브리지로 {self.label} {ver} 사용 중", "version": ver, "selected_model": self.s.model_id}
+
     def status(self) -> dict[str, Any]:
         base = {"provider_id": self.id.value, "label": self.label, "is_mock": False, "enabled": self.s.enabled,
                 "source_kind": SourceKind.local_observed, "last_checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-                "models": [], "command_configured": bool(self.s.command)}
+                "models": [], "command_configured": bool(self.s.command), "connection": "local"}
+        if self.s.connection == "bridge":
+            return self._bridge_status(base)
         cmd = self.resolved_command()
         ver = self.version() if cmd else None
         base["command"] = cmd
@@ -281,6 +331,12 @@ class _CliProvider:
                       model_id: str | None) -> ProviderResult:
         if not self.s.enabled:
             raise ProviderCallError("disabled", f"{self.label} 실행 연동이 꺼져 있습니다.")
+        if self.s.connection == "bridge":
+            r = self._bridge("POST", "/generate", {"provider": self.id.value, "system": system, "prompt": prompt,
+                                                   "json_schema": json_schema, "model_id": model_id or self.s.model_id,
+                                                   "timeout_s": self.s.timeout_s}, timeout=self.s.timeout_s + 15)
+            return ProviderResult(text=r.get("text", ""), model_id=r.get("model_id"), duration_ms=r.get("duration_ms") or 0,
+                                  tokens_in=r.get("tokens_in"), tokens_out=r.get("tokens_out"), raw_meta={"via": "bridge"})
         args = self.build_args(json_schema=json_schema, model_id=model_id or self.s.model_id)
         t = time.monotonic()
         p = self._run(args, stdin=system + "\n\n" + prompt, timeout=self.s.timeout_s)

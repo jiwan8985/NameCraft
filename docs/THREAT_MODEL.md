@@ -40,6 +40,10 @@
 | D1 | 큰 파일·큰 계산으로 서버 정지 | 업로드 10MB, PDF 50쪽, 시나리오 최대 15일·62일 범위, 조합 수 상한, 후보 수 상한 | 단위 테스트 |
 | E1 | 경로 조작으로 다른 파일 접근 | 업로드 저장명 무작위, 저장 폴더 밖 경로 차단, 프록시 `.`/`..` 세그먼트 차단 | `test_sniff_and_filename_safety`, 프록시 테스트 |
 | E2 | 원격 Ollama 로 데이터 전송 | Ollama 주소는 로컬만 허용(설정 검증) | `test_ollama_url_must_be_local` |
+| B1 | 연결 브리지를 통한 임의 명령 실행 | 브리지는 claude·agy 두 CLI 와 고정 인자만 실행, 요청의 명령·옵션 무시, 금지 플래그 차단 | `test_bridge_rejects_unknown_provider_commands_and_big_bodies`, `test_bridge_args_match_backend` |
+| B2 | 브리지 무단 사용(같은 네트워크의 다른 기기) | 기본 127.0.0.1 바인딩, `--lan` 은 명시 옵션+경고, Bearer 토큰(상수 시간 비교, 파일 권한 600, 재발급), 한 번에 한 요청, 64KB 제한 | `test_bridge_requires_token`, `test_bridge_token_file` |
+| B3 | 브리지 토큰 유출 | 앱 DB 에만 저장, API 응답·상태에 토큰 미포함(`bridge_token_set` 만) | `test_settings_api_bridge` |
+| B4 | 브리지 경유 개인정보 전송 | 일반 외부 Provider 와 같은 동의·전송 필드 제한, 브리지 로그에 내용 미기록 | `test_settings_api_bridge` |
 
 ## 4. 남은 위험 (수용 또는 사용자 조치)
 
@@ -49,6 +53,7 @@
 | DB·업로드 파일 암호화 저장 없음 | 수용(개인용 로컬). 백업 파일도 평문 JSON — 안전한 곳에 보관 |
 | 다중 사용자 로그인·권한 분리 없음 | 범위 밖(P2). 공개 서비스 전 별도 설계 필요 |
 | 요청 빈도 제한 없음 | 로컬 단일 사용자라 수용 |
+| 브리지 통신은 HTTP(평문) | 수용 — 같은 PC·같은 네트워크 전용. 인터넷 노출 금지(문서·실행 화면 경고). 필요 시 사용자가 HTTPS 리버스 프록시 앞단 구성 |
 | 개발 PC 환경변수 `NODE_TLS_REJECT_UNAUTHORIZED=0` (Windows 전역) | **사용자 조치 권장** — npm 등 Node 의 HTTPS 인증서 검증이 꺼진 상태 |
 | 구독형 CLI 의 약관상 자동 실행 허용 범위 | 사용자 확인 — 기본 꺼짐 |
 

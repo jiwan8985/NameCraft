@@ -47,6 +47,15 @@
 
 공통: 서브프로세스 환경에서 `ANTHROPIC_*`·`GEMINI_*`·`GOOGLE_API*`·`OPENAI_*`·`*_API_KEY` 등 제거, 금지 플래그 포함 시 실행 거부, `total_cost_usd` 등 API 과금 필드 미저장. `POST /ai/providers/{p}/test` 는 버전·모델 목록만 확인(생성 호출 없음).
 
+## 2-2. 연결 방식 (2026-11-19 추가)
+
+| 방식 | 대상 | 설명 |
+|---|---|---|
+| 이 PC — PATH | Claude Code·Antigravity | 백엔드 환경 PATH 의 CLI |
+| 이 PC — WSL 자동 탐지 | Claude Code·Antigravity | Windows 백엔드가 `wsl.exe -e bash -lc 'command -v <cli>'` 로 위치 확인 → `wsl.exe -e <경로>` 로 실행. 실제 확인: Claude Code 생성 8.2초 |
+| 연결 브리지 | Claude Code·Antigravity | `bridge/namecraft_bridge.py`(표준 라이브러리) 가 CLI 설치 위치에서 실행, 앱은 `GET /health`·`POST /generate` + Bearer 토큰으로 연결. CLI 인자·안전 규칙은 백엔드와 동일(테스트로 일치 확인). 실제 확인: Windows → WSL 브리지 두 CLI 모두 connected |
+| 로컬 HTTP | Ollama | 로컬 주소만 |
+
 ## 3. 금지 사항 (테스트로 강제)
 
 - `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GOOGLE_API_KEY` 등 유료 API 키를 읽거나 서브프로세스 환경에 주입하지 않는다(서브프로세스 실행 시 해당 변수 **제거**).

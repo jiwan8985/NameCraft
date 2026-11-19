@@ -72,7 +72,9 @@ def load_settings(session: Session, ollama_url: str | None = None) -> dict[str, 
     out = {}
     for row in session.scalars(select(AIProviderSetting)):
         out[row.provider_id] = ProviderSettings(enabled=row.enabled, command=row.command, model_id=row.model_id,
-                                                timeout_s=row.timeout_s, base_url=url)
+                                                timeout_s=row.timeout_s, base_url=url,
+                                                connection=row.connection or "local", bridge_url=row.bridge_url,
+                                                bridge_token=row.bridge_token)
     out.setdefault("ollama", ProviderSettings(enabled=True, base_url=url))
     out["ollama"].base_url = url
     return out

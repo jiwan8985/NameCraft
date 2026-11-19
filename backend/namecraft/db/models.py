@@ -326,6 +326,9 @@ class AIProviderSetting(Base):
     model_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     timeout_s: Mapped[int] = mapped_column(default=120)
     fallback_rank: Mapped[int] = mapped_column(default=99)  # 자동 대체 순서 (낮을수록 먼저)
+    connection: Mapped[str] = mapped_column(String(10), default="local")  # local | bridge
+    bridge_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    bridge_token: Mapped[str | None] = mapped_column(String(200), nullable=True)  # 응답으로 내보내지 않음
     allow_auto_fallback: Mapped[bool] = mapped_column(default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 

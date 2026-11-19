@@ -295,6 +295,11 @@ def link() -> int:
     return 0
 
 
+def bridge() -> int:
+    """연결 브리지 실행 — Windows 에서는 이 venv python 으로(Windows 에 설치된 CLI 사용)."""
+    return run([PY, str(ROOT / "bridge" / "namecraft_bridge.py"), *sys.argv[2:]])
+
+
 def open_web() -> int:
     import webbrowser
 
@@ -519,6 +524,15 @@ namecraft start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: nam
         detail="""~/.local/bin/namecraft 링크를 만들어, 프로젝트 폴더로 이동하지 않아도 namecraft 명령이 동작하게 합니다.
 리눅스 기본 명령과 이름이 겹치지 않습니다. 해제하려면 rm ~/.local/bin/namecraft""",
         examples=("./namecraft link", "namecraft status")),
+    "bridge": Task(bridge, "실행", "연결 브리지 실행 (Claude Code·Antigravity 를 다른 곳에서 연결)", "[--lan]",
+        detail="""Claude Code·Antigravity 가 설치된 컴퓨터에서 실행하는 작은 연결 프로그램입니다.
+실행하면 '주소'와 '토큰'이 화면에 나옵니다 → NameCraft 설정 › 해당 AI › 연결 방식 '연결 브리지' 에 입력하세요.
+  · WSL 에 설치된 CLI : WSL 에서 namecraft bridge  (Windows 앱에서 주소 http://127.0.0.1:8787)
+  · 다른 PC 의 CLI   : 그 PC 에 bridge/namecraft_bridge.py 파일 하나만 복사 → python3 namecraft_bridge.py --lan
+                        (같은 네트워크에서만, 토큰을 공유하지 말 것)
+  · 정해진 두 CLI 만 실행하고, 토큰이 없는 요청은 거부합니다. 끄기: Ctrl+C
+  · 토큰 새로 만들기: namecraft bridge --new-token""",
+        examples=("namecraft bridge", "namecraft bridge --lan", "python3 namecraft_bridge.py --port 9000")),
     "help": Task(lambda: help_(), "도움말", "이 목록 보기 / namecraft help <명령> 으로 자세히", "[명령]",
         detail="명령 목록을 보여줍니다. 명령 이름을 붙이면 그 명령의 자세한 설명과 예시를 보여줍니다.",
         examples=("namecraft help", "namecraft help start", "namecraft start --help")),

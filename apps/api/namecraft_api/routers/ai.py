@@ -96,6 +96,9 @@ class ProviderPrefIn(BaseModel):
     timeout_s: int | None = Field(default=None, ge=10, le=600)
     fallback_rank: int | None = Field(default=None, ge=0, le=99)
     allow_auto_fallback: bool | None = None
+    connection: Literal["local", "bridge"] | None = None
+    bridge_url: str | None = Field(default=None, max_length=200)
+    bridge_token: str | None = Field(default=None, max_length=200)
 
 
 @router.patch("/preferences", response_model=Envelope[dict[str, Any]])
@@ -105,16 +108,27 @@ def patch_preferences(body: ProviderPrefIn, db: Session = Depends(get_db)):
             raise AppError("command 는 비어 있지 않은 문자열 목록이어야 합니다.")
         if any(f in body.command for f in FORBIDDEN_FLAGS):
             raise AppError("허용되지 않는 CLI 옵션이 포함되어 있습니다.", details={"forbidden": FORBIDDEN_FLAGS})
+    if body.connection == "bridge" and body.provider_id == "ollama":
+        raise AppError("Ollama 는 브리지 대상이 아닙니다(로컬 주소만 사용).")
+    if body.bridge_url is not None:
+        from urllib.parse import urlparse
+
+        u = urlparse(body.bridge_url.strip())
+        if u.scheme not in ("http", "https") or not u.hostname or u.path not in ("", "/") or u.query:
+            raise AppError("브리지 주소는 http://주소:포트 형식이어야 합니다.")
+        body.bridge_url = f"{u.scheme}://{u.netloc}"
     row = db.get(AIProviderSetting, body.provider_id) or AIProviderSetting(
         provider_id=body.provider_id, enabled=body.provider_id == "ollama")
-    for k in ("enabled", "command", "model_id", "timeout_s", "fallback_rank", "allow_auto_fallback"):
+    for k in ("enabled", "command", "model_id", "timeout_s", "fallback_rank", "allow_auto_fallback", "connection",
+              "bridge_url", "bridge_token"):
         v = getattr(body, k)
         if v is not None:
             setattr(row, k, v)
     db.add(row)
     db.commit()
-    return envelope({k: getattr(row, k) for k in ("provider_id", "enabled", "command", "model_id", "timeout_s",
-                                                  "fallback_rank", "allow_auto_fallback")},
+    return envelope({**{k: getattr(row, k) for k in ("provider_id", "enabled", "command", "model_id", "timeout_s",
+                                                     "fallback_rank", "allow_auto_fallback", "connection", "bridge_url")},
+                     "bridge_token_set": bool(row.bridge_token)},  # 토큰 값은 돌려주지 않음
                     warnings=[SUBSCRIPTION_NOTE] if body.provider_id != "ollama" else [])
 
 
