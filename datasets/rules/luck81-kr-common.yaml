@@ -1,0 +1,94 @@
+# 81수리 길흉 분류 — 통용 분류 (구마사키 겐오 81수리 계열의 한국 작명 통용표)
+# 성격: traditional_interpretation (전통 해석). 과학적 근거 없음. 이름이 운명을 결정하지 않는다.
+# 상태: source_check_pending (출처 대조 전) — 개발자가 통용 분류를 정리. 특정 문헌과 한 줄씩 대조하지 않음.
+# 저작권: 숫자별 분류만 담는다. 문헌의 해설 문장은 옮기지 않는다.
+# class: good(길) | half(반길) | bad(흉). disputed: 학파·문헌에 따라 분류가 갈림 → alt 에 대안 분류.
+schema_version: 1
+rule_id: NUM.LUCK81.KR-COMMON.v1
+profile_id: kr-common-2026
+status: source_check_pending
+origin: "구마사키 겐오(熊崎健翁) 81수리(1920년대 일본) 계열, 한국 원형이정 4격 적용 통용표"
+compiled_by: developer
+compiled_at: 2026-11-19
+numbers:
+  1: {class: good}
+  2: {class: bad}
+  3: {class: good}
+  4: {class: bad}
+  5: {class: good}
+  6: {class: good}
+  7: {class: good}
+  8: {class: good}
+  9: {class: bad}
+  10: {class: bad}
+  11: {class: good}
+  12: {class: bad}
+  13: {class: good}
+  14: {class: bad}
+  15: {class: good}
+  16: {class: good}
+  17: {class: good}
+  18: {class: good}
+  19: {class: bad}
+  20: {class: bad}
+  21: {class: good}
+  22: {class: bad}
+  23: {class: good}
+  24: {class: good}
+  25: {class: good}
+  26: {class: bad, disputed: true, alt: [half]}
+  27: {class: bad, disputed: true, alt: [half]}
+  28: {class: bad, disputed: true, alt: [half]}
+  29: {class: good}
+  30: {class: bad, disputed: true, alt: [half]}
+  31: {class: good}
+  32: {class: good}
+  33: {class: good}
+  34: {class: bad}
+  35: {class: good}
+  36: {class: bad}
+  37: {class: good}
+  38: {class: good, disputed: true, alt: [half]}
+  39: {class: good}
+  40: {class: bad}
+  41: {class: good}
+  42: {class: bad}
+  43: {class: bad}
+  44: {class: bad}
+  45: {class: good}
+  46: {class: bad}
+  47: {class: good}
+  48: {class: good}
+  49: {class: bad}
+  50: {class: bad}
+  51: {class: half, disputed: true, alt: [bad]}
+  52: {class: good}
+  53: {class: bad}
+  54: {class: bad}
+  55: {class: bad}
+  56: {class: bad}
+  57: {class: good}
+  58: {class: good, disputed: true, alt: [half]}
+  59: {class: bad}
+  60: {class: bad}
+  61: {class: good}
+  62: {class: bad}
+  63: {class: good}
+  64: {class: bad}
+  65: {class: good}
+  66: {class: bad}
+  67: {class: good}
+  68: {class: good}
+  69: {class: bad}
+  70: {class: bad}
+  71: {class: half, disputed: true, alt: [good]}
+  72: {class: bad}
+  73: {class: half, disputed: true, alt: [good]}
+  74: {class: bad}
+  75: {class: half, disputed: true, alt: [good]}
+  76: {class: bad}
+  77: {class: half, disputed: true, alt: [bad]}
+  78: {class: half, disputed: true, alt: [good]}
+  79: {class: bad}
+  80: {class: bad}
+  81: {class: good}

@@ -46,11 +46,12 @@ def test_multi_reading_with_name_flags(lexicon_session):
     assert rows["낙"].is_name_reading is False  # 플래그 0 만 있음
 
 
-def test_modern_strokes_only_no_original_yet(lexicon_session):
+def test_modern_and_original_strokes_stored_separately(lexicon_session):
     s = lexicon_session
-    sc = s.scalars(select(HanjaStrokeCount).where(HanjaStrokeCount.codepoint == "U+6C88")).one()
-    assert (sc.system, sc.strokes, sc.rule_id) == ("modern", 7, "STROKE.MODERN.UNIHAN.v1")
-    assert s.scalar(select(func.count()).select_from(HanjaStrokeCount).where(HanjaStrokeCount.system == "original")) == 0
+    rows = {r.system: r for r in s.scalars(select(HanjaStrokeCount).where(HanjaStrokeCount.codepoint == "U+6C88"))}
+    assert (rows["modern"].strokes, rows["modern"].rule_id) == (7, "STROKE.MODERN.UNIHAN.v1")
+    assert (rows["original"].strokes, rows["original"].rule_id) == (8, "STROKE.ORIGINAL.v1")
+    assert rows["original"].profile_id == "kr-common-2026" and rows["original"].status == "unverified"
 
 
 def test_release_recorded_with_checksum(lexicon_session):

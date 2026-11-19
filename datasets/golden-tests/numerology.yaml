@@ -78,11 +78,33 @@ cases:
 
   - id: NUM-NA-001
     desc: "한글 전용 이름(한자 미지정) → 획수·수리 not_applicable"
-    input: { surname_hanja: "沈", given_hangul: "초롱", given_hanja: null }
+    input: { surname_hangul: 심, surname_hanja: "沈", given_hangul: "초롱", given_hanja: null }
     expected: { numerology: not_applicable, eumryeong: applicable }
     status: definitional
 
   - id: NUM-REAL-001
-    desc: "실제 한자 원획 기반 (沈 등) — 한자 DB 검증 후 확정"
-    expected: pending
-    status: pending
+    desc: "실제 한자 원획 — 심지아(沈智雅): 沈8(氵→水) 智12 雅12"
+    input: { surname_hangul: 심, surname_hanja: 沈, given_hangul: 지아, given_hanja: 智雅 }
+    expected: { strokes: [8, 12, 12], won: 24, hyeong: 20, i: 20, jeong: 32 }
+    status: formula_derived
+    notes: "원획은 STROKE.ORIGINAL.v1(부수 본자 환원) 산출값. 문헌 대조 전"
+
+  - id: NUM-REAL-002
+    desc: "현대 필획 체계 — 沈은 7획"
+    input: { surname_hangul: 심, surname_hanja: 沈, given_hangul: 지아, given_hanja: 智雅,
+             options: { stroke_system: modern } }
+    expected: { strokes: [7, 12, 12], won: 24, hyeong: 19, i: 19, jeong: 31 }
+    status: formula_derived
+
+  - id: NUM-REAL-003
+    desc: "복성 실제 한자 — 남궁민(南宮珉): 南9 宮10 珉10(王→玉 5+5)"
+    input: { surname_hangul: 남궁, surname_hanja: 南宮, given_hangul: 민, given_hanja: 珉 }
+    expected: { strokes: [9, 10, 10], won: 10, hyeong: 29, i: 19, jeong: 29 }
+    status: formula_derived
+
+  - id: NUM-REAL-004
+    desc: "숫자 한자 뜻 계산 옵션 — 四(현대 5획 → 뜻 4)"
+    input: { surname_hangul: 김, surname_hanja: 金, given_hangul: 사랑, given_hanja: 四郞,
+             options: { numeral_by_meaning: true } }
+    expected: { first_given_strokes: 4 }
+    status: formula_derived

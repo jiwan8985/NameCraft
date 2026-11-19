@@ -19,7 +19,7 @@
 | SRC-STDICT | 국립국어원 표준국어대사전 | 표준 발음·어휘 의미 보완 | 공식(국어) | 오픈 API | 이용약관 확인 필요 | candidate |
 | SRC-KLC-LIB | `korean-lunar-calendar` 0.4.0 | 양력↔음력·윤달 변환, 일진 교차검증 | 비공식(구현체) | PyPI | MIT (패키지 메타데이터 확인) | **ingested** |
 | SRC-DEV-SURNAME-SEED | 개발자 큐레이션 성씨 시드 (`datasets/seed/surnames.yaml`) | 성씨 사전 초기값 (단성 112 + 복성 8) | 개발용 — 공식 아님 | 저장소 파일 | 프로젝트 자체 | approved (레코드는 unverified) |
-| SRC-NUM-TRAD | 수리성명학 81수리 길흉표, 원획 변환 규칙(부수 본자 환원) | 전통 해석 규칙 | **전통 해석(학파별)** | 문헌 수동 정리, 학파·서지 기록 | 저작물 인용 범위 확인 필요 — 표 자체 전재 금지, 규칙 요약만 | candidate |
+| SRC-NUM-TRAD | 81수리 통용 분류(구마사키 겐오 계열) — `datasets/rules/luck81-kr-common.yaml` | 전통 해석 규칙 | **전통 해석(학파별)** | 개발자 정리(문헌 대조 전) | 분류만 저장, 문헌 해설 문장 미전재 | candidate — **출처 대조 전** |
 
 ## 2. 권위 순위 (충돌 시)
 

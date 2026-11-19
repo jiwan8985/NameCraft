@@ -24,6 +24,8 @@ from sqlalchemy.orm import Session
 
 from namecraft.adapters.importers.common import sha256_file, upsert_release
 from namecraft.db.models import HanjaCharacter, HanjaReading, HanjaStrokeCount, HanjaVariant
+from namecraft.domain.numerology.strokes import RULE_ID as ORIGINAL_RULE
+from namecraft.domain.numerology.strokes import original_strokes
 from namecraft.domain.text import char_from_codepoint
 
 SOURCE_ID = "SRC-UNIHAN"
@@ -128,6 +130,12 @@ def import_unihan(session: Session, zip_path: Path, *, is_sample: bool = False) 
             session.add(HanjaStrokeCount(codepoint=cp, system="modern", strokes=n, rule_id=STROKE_RULE,
                                          source_id=SOURCE_ID, status="unverified"))
             stats["strokes"] += 1
+        # 성명학 원획(trad 규칙 산출) — 현대 필획과 다른 system 으로 분리 저장 (REQ-NUM-002)
+        orig = original_strokes(ch.char, f.get("kRSUnicode"))
+        if orig.strokes is not None:
+            session.add(HanjaStrokeCount(codepoint=cp, system="original", strokes=orig.strokes, rule_id=ORIGINAL_RULE,
+                                         profile_id="kr-common-2026", source_id=SOURCE_ID, status="unverified"))
+            stats["original_strokes"] += 1
         for key, vtype in VARIANT_TYPES.items():
             for target in _variant_targets(f.get(key, "")):
                 session.add(HanjaVariant(codepoint=cp, variant_codepoint=target, variant_type=vtype,

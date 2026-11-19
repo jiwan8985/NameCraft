@@ -134,14 +134,19 @@ def _surname_dict(session: Session, s: Surname) -> dict[str, Any]:
     chars = []
     for cp in s.hanja_codepoints:
         ch = session.get(HanjaCharacter, cp)
-        modern = session.scalar(select(HanjaStrokeCount.strokes).where(
-            HanjaStrokeCount.codepoint == cp, HanjaStrokeCount.system == "modern"))
+        st = stroke_map(session, cp)
+        modern, original = st.get("modern"), st.get("original")
         chars.append({"codepoint": cp, "char": char_from_codepoint(cp), "in_hanja_db": ch is not None,
                       "modern_strokes": modern, "modern_strokes_status": "unverified" if modern else "not_available",
-                      "original_strokes": None, "original_strokes_status": "not_available"})
+                      "original_strokes": original,
+                      "original_strokes_status": "unverified" if original else "not_available"})
     return {"id": s.id, "hangul": s.hangul, "alt_hangul": alts, "hanja": s.hanja, "is_compound": s.is_compound,
             "record_status": s.record_status, "is_provisional": s.is_provisional, "source_id": s.source_id,
             "note": s.note, "characters": chars}
+
+
+def stroke_map(session: Session, cp: str) -> dict[str, int]:
+    return {s.system: s.strokes for s in session.scalars(select(HanjaStrokeCount).where(HanjaStrokeCount.codepoint == cp))}
 
 
 def search_surnames(session: Session, q: str) -> list[dict[str, Any]]:

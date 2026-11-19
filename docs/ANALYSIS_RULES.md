@@ -56,7 +56,7 @@ rules:
 | rule_id | 종류 | 정의 |
 |---|---|---|
 | STROKE.MODERN.UNIHAN.v1 | calc(데이터) | 현대 필획 = Unihan `kTotalStrokes`. 값이 2개면 UAX #38상 둘째(zh-Hant 선호)값 사용(한국 정자 기준). 상태 unverified (Phase 2 구현) |
-| STROKE.ORIGINAL.v1 | trad | 성명학 원획(강희 기준 + 부수 본자 환원: 氵→水 4, 扌→手 4, 忄→心 4, 犭→犬 4, 礻→示 5, 衤→衣 6, 月(肉)→肉 6, 艹→艸 6, 辶→辵 7, 阝(左, 阜)→8, 阝(右, 邑)→7, 王(玉)→玉 5 등). **학파마다 다를 수 있어 표 전체를 프로필 데이터로 관리** |
+| STROKE.ORIGINAL.v1 | trad | 성명학 원획 = 강희 214부수 본래 획수 + Unihan `kRSUnicode` 나머지 획수 → 변형 부수(氵→水 4, 扌→手 4, 忄→心 4, 犭→犬 4, 礻→示 5, 衤→衣 6, 月(肉)→肉 6, 艹→艸 6, 辶→辵 7, 阝(左)→阜 8, 阝(右)→邑 7, 王→玉 5, 罒→网 6, 耂→老 6) 자동 환원. 간체/변형 부수 표기(') 는 미적용(unknown). 학파 예외는 profile 예외 표로 덮어씀(현재 없음). Phase 4 구현·8,525자 적재 |
 | STROKE.NUMERAL.v1 | trad | 숫자 한자 획수 특례(一~十을 수의 뜻으로 1~10 적용하는 학파 존재) — 옵션 `numeral_by_meaning: false` 기본 |
 
 필획과 원획은 **다른 테이블/필드**에 저장하고 계산 시 프로필의 `stroke_system: modern | original`을 명시한다.
@@ -74,11 +74,11 @@ rules:
 
 - 옵션 `single_name_virtual_stroke: none | plus_one` (외자 가수 1 적용 여부, 기본 `none`), `compound_surname_mode: sum`.
 - 81수리 환원 `NUM.REDUCE81.v1`: n > 81이면 n − 80을 반복(옵션 `reduce: subtract_80`).
-- 81수리 길흉 `NUM.LUCK81.*` (**trad**): 학파·문헌별 표를 데이터로 주입. Phase 0에서는 표를 포함하지 않는다.
-- 음양 배합 `NUM.YINYANG.v1` (calc+trad): 각 글자 획수 홀=양, 짝=음. 배열 패턴 계산은 calc, 길흉 판정은 trad.
+- 81수리 길흉 `NUM.LUCK81.KR-COMMON.v1` (**trad**, 출처 대조 전): `datasets/rules/luck81-kr-common.yaml` — 1~81 길/반길/흉 분류만 저장(문헌 해설 미전재). 학파 간 분류가 갈리는 12개 수(26·27·28·30·38·51·58·71·73·75·77·78)는 `disputed` + 대안 분류.
+- 음양 배합 `NUM.YINYANG.v1` (calc+trad): 각 글자 획수 홀=양, 짝=음. 배열 패턴 계산은 calc, 판단(trad)은 '한쪽으로만 이루어지면 편중'만 표시.
 - 수리오행 `NUM.ELEMENT.v1` (calc): 끝자리 1·2 木, 3·4 火, 5·6 土, 7·8 金, 9·0 水.
-- 삼원오행 `NUM.SAMWON.*` (trad): 학파별 정의 상이 → Phase 4에서 문헌 확정 후 등록.
-- 자원오행 `NUM.JAWON.*` (trad): 한자별 학파 매핑 데이터(`hanja_element_mappings`), 출처 필수.
+- 삼원오행 `NUM.SAMWON.KR-COMMON.v1` (trad, 출처 대조 전): 천격=성+1(복성은 성 합), 인격=성+이름 첫자, 지격=이름 합(외자 +1), 각 끝자리 수리오행 + 상생·상극 관계.
+- 자원오행 `NUM.JAWON.RADICAL.v1` (trad, 출처 대조 전): 부수 의미가 오행과 직접 대응하는 경우만 배정(水·冫·雨→水, 木·艸·竹·禾→木, 火→火, 土·山·田→土, 金·玉·石→金), 그 외 판정 보류(null). 학파 매핑 표가 생기면 `hanja_element_mappings`로 덮어씀.
 
 ### 음령(발음)오행 `NUM.EUMRYEONG.*` (trad)
 

@@ -19,7 +19,7 @@ def test_surname_by_initial_sound_variant_and_compound(lexicon_client):
     assert [i["hanja"] for i in lee] == ["李"] and "리" in lee[0]["alt_hangul"]
     ng = lexicon_client.get("/api/v1/surnames", params={"q": "남궁"}).json()["data"][0]
     assert ng["is_compound"] and [c["modern_strokes"] for c in ng["characters"]] == [9, 10]
-    assert all(c["original_strokes_status"] == "not_available" for c in ng["characters"])
+    assert [c["original_strokes"] for c in ng["characters"]] == [9, 10]
 
 
 def test_unknown_surname_and_provisional_record(lexicon_client):
@@ -39,8 +39,8 @@ def test_hanja_reverse_search_by_reading(lexicon_client):
     assert {w["code"] for w in body["warnings"]} == {"official_data_missing"}
     shim = next(i for i in body["data"] if i["codepoint"] == "U+6C88")
     assert shim["official"]["status"] == "unknown" and shim["official"]["requires_official_recheck"]
-    assert shim["strokes"] == [{"system": "modern", "strokes": 7, "rule_id": "STROKE.MODERN.UNIHAN.v1",
-                                "profile_id": None, "source_id": "SRC-UNIHAN", "status": "unverified"}]
+    assert {"system": "modern", "strokes": 7, "rule_id": "STROKE.MODERN.UNIHAN.v1",
+            "profile_id": None, "source_id": "SRC-UNIHAN", "status": "unverified"} in shim["strokes"]
     assert any(p["source_id"] == "SRC-UNIHAN" and p["license"] == "Unicode License v3" for p in body["provenance"])
 
 
@@ -82,7 +82,7 @@ def test_real_official_data_verifies_and_flags_unlisted(lexicon_client, lexicon_
 def test_admin_data_summary(lexicon_client):
     d = lexicon_client.get("/api/v1/admin/data").json()["data"]
     assert d["summary"]["hanja_characters"] > 100 and d["summary"]["official_rules"] == 0
-    assert d["summary"]["original_stroke_counts"] == 0
+    assert d["summary"]["original_stroke_counts"] > 100
     assert any(r["id"].startswith("unihan-18.0.0") for r in d["releases"])
     assert any(s["id"] == "SRC-SCOURT-HANJA" and s["status"] == "license_review" for s in d["sources"])
 
