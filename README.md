@@ -15,36 +15,34 @@
 - AI(Ollama / Claude Code / Antigravity)는 선택 기능입니다. 유료 API 키 입력·종량제 연결은 제공하지 않습니다.
 - 이름 해석은 문화적 참고 자료이며 건강·성공·운명을 보증하지 않습니다.
 
-## 빠른 시작 (Windows PowerShell 기준)
+## 빠른 시작 — 명령어 모음 `nc`
 
-요구: Python 3.12+ (개발 환경 3.14), Node.js 24.
+요구: Python 3.12+, Node.js 24. 저장소 폴더에서 실행합니다.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python scripts\tasks.py setup     # pip + npm ci
-.venv\Scripts\python scripts\tasks.py fetch-unihan  # Unicode Unihan 원천 파일 (최초 1회)
-.venv\Scripts\python scripts\tasks.py import-data   # 출처·한자·성씨 데이터 적재
-.venv\Scripts\python scripts\tasks.py dev       # API 127.0.0.1:8000 + Web 127.0.0.1:3000
-```
+| 환경 | 쓰는 법 |
+|---|---|
+| Windows 명령 프롬프트 | `nc <명령>` |
+| Windows PowerShell | `.\nc <명령>` |
+| WSL · macOS · Linux | `./nc <명령>` |
 
-- 웹: http://127.0.0.1:3000 · 헬스체크: http://127.0.0.1:8000/api/v1/health
-- 최초 실행 시 `var/local_token`(로컬 인증 토큰)과 `var/namecraft.db`(SQLite)가 생성됩니다. `var/`는 Git에 포함되지 않습니다.
-- macOS/Linux: `.venv/bin/python scripts/tasks.py ...`
-
-### 공식 인명용 한자표
-
-대법원 인명용 한자표를 직접 받아 검토한 뒤 정규화 CSV(`hanja,reading,effective_date,legal_basis`)로 만들어 가져옵니다. 적재 전까지 모든 한자의 법적 허용 여부는 **판정 불가**로 표시됩니다.
+명령 없이 `nc` 만 입력하면 **번호로 고르는 메뉴**가 나오고, `nc help` 는 전체 목록을 보여줍니다.
 
 ```powershell
-.venv\Scripts\python scripts\tasks.py import-official path\to\official.csv
+nc install     # 처음 한 번: 의존성 설치 + 한자 자료 받기 + DB 준비 (가상환경이 없으면 자동 생성)
+nc start       # API + 웹 실행 → http://127.0.0.1:3000 (종료: Ctrl+C)
+nc stop        # 창을 닫았는데 서버가 남아 있을 때
+nc status      # 실행 상태·데이터·AI 설정 요약
 ```
 
-### 테스트
+| 분류 | 명령 |
+|---|---|
+| 실행 | `start` · `stop` · `open`(브라우저) · `status` |
+| 데이터 | `backup-db` · `migrate` · `fetch-unihan` · `import-data` · `import-official <CSV>` |
+| 검사 | `test` · `test-api [pytest 옵션]` · `test-web` · `test-security` · `build-web` · `perf` · `audit` |
+| Docker | `docker-up` · `docker-down` |
 
-```powershell
-.venv\Scripts\python scripts\tasks.py test        # pytest + vitest + tsc
-.venv\Scripts\python scripts\tasks.py build-web   # Next.js 프로덕션 빌드
-```
+- 데이터 위치: `var/namecraft.db`(DB), `var/uploads/`(업로드), `var/local_token`(로컬 토큰) — Git 에 포함되지 않습니다.
+- 대법원 인명용 한자표는 검토 후 정규화 CSV(`hanja,reading,effective_date,legal_basis`)로 만들어 `nc import-official <파일>` 로 넣습니다. 적재 전까지 법적 허용 여부는 **판정 불가**로 표시됩니다.
 
 ### Docker (선택)
 
@@ -60,5 +58,5 @@ backend/namecraft/         코어(설정·인증·DB·AI Gateway, 이후 도메�
 backend/tests/             pytest
 datasets/                  출처 manifest · golden tests · DEMO fixtures
 docs/                      요구사항·규칙·출처·QA·결정·진행 현황
-scripts/tasks.py           로컬 작업 실행기
+scripts/tasks.py           명령어 모음 본체 (nc.cmd · nc 가 실행)
 ```

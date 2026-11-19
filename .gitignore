@@ -9,3 +9,4 @@ __pycache__/
 next-env.d.ts
 .pytest_cache/
 var/
+backups/
