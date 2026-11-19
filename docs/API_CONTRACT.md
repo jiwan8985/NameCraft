@@ -38,7 +38,20 @@
 | GET | `/api/v1/hanja?char=&reading=&name_only=&limit=` | 필요 | 2 | 구현 — 독음 역검색, 글자 조회 시 호환한자 계열 함께 반환 |
 | GET | `/api/v1/hanja/{codepoint}` | 필요 | 2 | 구현 — 상세(독음·획수·이체자·비공식 힌트·공식 판정) |
 | GET | `/api/v1/admin/data` | 필요 | 2 | 구현 — 데이터 현황·출처·데이터 버전(체크섬) |
-| 기타 §18 엔드포인트 | | 필요 | 3~11 | 미구현 |
+| POST | `/api/v1/saju/calculate` | 필요 | 3 | 구현 — 양력/음력(윤달), 정확 시각·시간 범위·시간 미정, 진태양시·자시 옵션, 구간별 4주·오행 개수·변경 기둥·인근 절입 시각. 입력 저장·로그 없음 |
+| GET | `/api/v1/calendar/solar-terms?year=` | 필요 | 3 | 구현 — 해당 연도 24절기 절입 시각(UTC·지역시) — KASI 대조용 |
+| 기타 §18 엔드포인트 | | 필요 | 4~11 | 미구현 |
+
+### `POST /saju/calculate` 요청
+
+```json
+{ "calendar": "solar | lunar", "date": "2027-01-15", "is_leap_month": false,
+  "time": "10:00" | null, "time_range": ["09:00", "12:00"] | null, "tz": "Asia/Seoul",
+  "longitude": 126.978 | null,
+  "options": { "true_solar_time": "off | longitude_only | with_equation_of_time",
+               "zi_convention": "jojasi_next_day | yajasi_same_day" } }
+```
+`time`·`time_range` 둘 다 없으면 시간 미정(하루 전체 분할). 오류 코드: `calendar_input_invalid`, `out_of_supported_range`, `ephemeris_unavailable`.
 
 ### 한자 응답의 `official.status`
 

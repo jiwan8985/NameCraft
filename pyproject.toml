@@ -11,6 +11,9 @@ dependencies = [
   "pydantic>=2.14",
   "pydantic-settings>=2.16",
   "pyyaml>=6.0",
+  "skyfield>=1.55",
+  "korean-lunar-calendar>=0.4",
+  "tzdata>=2026.6",
 ]
 
 [project.optional-dependencies]

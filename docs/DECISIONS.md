@@ -19,6 +19,9 @@
 | D-014 | 2026-11-19 | Unihan `kHangul` 플래그 E 또는 N → `is_name_reading=True`(비공식 힌트) | 인명용 한자 = 교육용 기초한자 + 인명용 추가한자 (가족관계등록규칙 제37조). 단 법적 판정에는 사용 안 함 | accepted |
 | D-015 | 2026-11-19 | 테스트용 Unihan 부분집합(`datasets/fixtures/unihan-subset.zip`, 라이선스 동봉)은 Git 포함, 전체 원천 zip은 미포함(`fetch-unihan`) | Unicode License v3가 재배포 허용, 원천은 D-008 정책 유지 | accepted |
 | D-016 | 2026-11-19 | 공식 인명용 한자표는 사람이 검토해 만든 **정규화 CSV**(`hanja,reading,effective_date,legal_basis`)로만 가져옴. 샘플 플래그 레코드는 절대 verified 아님 | 원본 형식 미확정·스크래핑 금지(REQ-HJ-004) | accepted |
+| D-017 | 2026-11-19 | 절기: Skyfield + JPL DE421(1900–2050 발췌본 Git 포함). 음력: korean-lunar-calendar. 일진: JDN 공식(라이브러리와 자동 교차검증) | 오프라인·결정론·테스트 재현성. 발췌본으로 원본 16.8MB → 7.3MB, 결과 동일 확인 | accepted |
+| D-018 | 2026-11-19 | 시각 기준 기본값 = 지역 **표준시**(일광절약시간 제거). 진태양시는 옵션 | 국내 만세력 관행(서머타임 기간 1시간 보정)과 일치, 학파 차이는 옵션으로 | accepted |
+| D-019 | 2026-11-19 | Phase 3 완료 게이트(외부 기준값 일치)는 KASI 대조 후에만 충족으로 표시. 그 전에는 `formula_derived` + 독립 구현 교차검증 | 기획서 §21.1 "임의 데이터로 통과 금지" | accepted |
 | D-012 | 2026-11-19 | TypeScript 5.9 고정(TS 7 네이티브는 Next 16 빌드 호환성 확인 전 보류) | 빌드 안정성 | accepted |
 
 ## Open Questions (사용자 결정 필요)

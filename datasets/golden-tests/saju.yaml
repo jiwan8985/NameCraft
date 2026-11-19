@@ -1,74 +1,192 @@
-# Golden Tests — 만세력/사주 (초안, Phase 0)
-# expected 값의 status:
-#   formula_derived   : docs/ANALYSIS_RULES.md 공식으로 산출. 외부 기준(KASI 등)과 대조 전.
-#   externally_verified: 외부 기준 출처(source)와 대조 완료 — Phase 3 완료 조건.
-#   pending           : 기대값 미확정. 테스트는 skip(xfail) 처리하며 통과로 간주하지 않는다.
+# Golden Tests — 만세력/사주 (Phase 3)
+# status:
+#   formula_derived     : docs/ANALYSIS_RULES.md 공식/엔진으로 산출. 외부 기준(KASI 등) 대조 전.
+#   externally_verified : 외부 기준 출처(verified_source, verified_at)와 대조 완료 — Phase 3 완료 게이트 대상.
+#   pending             : 기대값 미확정. 테스트 skip, 통과로 집계하지 않음.
+# cross_checks: 엔진과 독립된 구현/자료와 자동 대조하는 항목 (externally_verified 를 대신하지 않음).
 schema_version: 1
 profile_id: kr-common-2026
 cases:
+  # ---------------- 일주 ----------------
   - id: SAJU-DAY-001
+    kind: day_pillar
     desc: "일진 기준점 (2000-01-01)"
-    input: { calendar: solar, date: "2000-01-01" }
+    input: { date: "2000-01-01" }
     expected: { day_pillar: "戊午", jdn: 2451545 }
     status: formula_derived
+    cross_checks: [SRC-KLC-LIB]
     verify_with: SRC-KASI-LUNAR
 
   - id: SAJU-DAY-002
+    kind: day_pillar
     desc: "대표 시나리오 예정일 일주"
-    input: { calendar: solar, date: "2027-01-15" }
+    input: { date: "2027-01-15" }
     expected: { day_pillar: "甲午" }
     status: formula_derived
+    cross_checks: [SRC-KLC-LIB]
     verify_with: SRC-KASI-LUNAR
 
-  - id: SAJU-YM-001
-    desc: "입춘 전 출생 → 전년 연주, 소한~입춘 → 丑월"
-    input: { calendar: solar, datetime: "2027-01-15T10:00", tz: "Asia/Seoul" }
-    expected: { year_pillar: "丙午", month_pillar: "辛丑" }
+  # ---------------- 절기 ----------------
+  - id: TERM-IPCHUN-2024
+    kind: solar_term
+    input: { year: 2024, term: 입춘 }
+    expected: { local: "2024-02-04T17:27", tz: Asia/Seoul }
     status: formula_derived
     verify_with: SRC-KASI-TERMS
-    notes: "2027 입춘·2027 소한 절입 시각 외부 확인 필요"
+  - id: TERM-IPCHUN-2025
+    kind: solar_term
+    input: { year: 2025, term: 입춘 }
+    expected: { local: "2025-02-03T23:10", tz: Asia/Seoul }
+    status: formula_derived
+    verify_with: SRC-KASI-TERMS
+  - id: TERM-IPCHUN-2026
+    kind: solar_term
+    input: { year: 2026, term: 입춘 }
+    expected: { local: "2026-02-04T05:02", tz: Asia/Seoul }
+    status: formula_derived
+    verify_with: SRC-KASI-TERMS
+  - id: TERM-IPCHUN-2027
+    kind: solar_term
+    input: { year: 2027, term: 입춘 }
+    expected: { local: "2027-02-04T10:46", tz: Asia/Seoul }
+    status: formula_derived
+    verify_with: SRC-KASI-TERMS
+  - id: TERM-SOHAN-2027
+    kind: solar_term
+    input: { year: 2027, term: 소한 }
+    expected: { local: "2027-01-05T23:09", tz: Asia/Seoul }
+    status: formula_derived
+    verify_with: SRC-KASI-TERMS
 
+  # ---------------- 음양력 ----------------
+  - id: LUNAR-001
+    kind: solar_to_lunar
+    desc: "2024 설날"
+    input: { date: "2024-02-10" }
+    expected: { year: 2024, month: 1, day: 1, is_leap_month: false }
+    status: formula_derived
+    verify_with: SRC-KASI-LUNAR
+  - id: LUNAR-002
+    kind: solar_to_lunar
+    desc: "2025 설날"
+    input: { date: "2025-01-29" }
+    expected: { year: 2025, month: 1, day: 1, is_leap_month: false }
+    status: formula_derived
+    verify_with: SRC-KASI-LUNAR
+  - id: SAJU-BOUND-LEAP
+    kind: lunar_to_solar
+    desc: "음력 윤달 입력 ↔ 양력 (2023 윤2월 1일)"
+    input: { year: 2023, month: 2, day: 1, is_leap_month: true }
+    expected: { date: "2023-03-22" }
+    status: formula_derived
+    verify_with: SRC-KASI-LUNAR
+  - id: LUNAR-LEAP-002
+    kind: lunar_to_solar
+    desc: "2020 윤4월 1일"
+    input: { year: 2020, month: 4, day: 1, is_leap_month: true }
+    expected: { date: "2020-05-23" }
+    status: formula_derived
+    verify_with: SRC-KASI-LUNAR
+  - id: LUNAR-LEAP-INVALID
+    kind: lunar_to_solar
+    desc: "윤달이 없는 달의 윤달 입력은 오류 (2024 윤3월)"
+    input: { year: 2024, month: 3, day: 1, is_leap_month: true }
+    expected: { error: calendar_input_invalid }
+    status: formula_derived
+
+  # ---------------- 4주 ----------------
+  - id: SAJU-YM-001
+    kind: chart
+    desc: "입춘 전 출생 → 전년 연주, 소한~입춘 → 丑월"
+    input: { date: "2027-01-15", time: "10:00", tz: Asia/Seoul }
+    expected: { text: "丙午 辛丑 甲午 己巳" }
+    status: formula_derived
+    verify_with: SRC-KASI-TERMS
+
+  - id: SAJU-BOUND-ZI-JOJASI
+    kind: chart
+    desc: "23:30 출생, 조자시 — 다음 날 일주"
+    input: { date: "2027-01-15", time: "23:30", tz: Asia/Seoul, options: { zi_convention: jojasi_next_day } }
+    expected: { text: "丙午 辛丑 乙未 丙子" }
+    status: formula_derived
+  - id: SAJU-BOUND-ZI-YAJASI
+    kind: chart
+    desc: "23:30 출생, 야자시 — 당일 일주 + 다음 날 기준 시간"
+    input: { date: "2027-01-15", time: "23:30", tz: Asia/Seoul, options: { zi_convention: yajasi_same_day } }
+    expected: { text: "丙午 辛丑 甲午 丙子" }
+    status: formula_derived
+
+  - id: SAJU-BOUND-KST-HIST
+    kind: chart
+    desc: "1955년 서울 표준시 UTC+8:30 + 일광절약시간: 벽시계 13:45 → 표준시 12:45 → 午시 (단순 계산 시 未시)"
+    input: { date: "1955-06-01", time: "13:45", tz: Asia/Seoul }
+    expected: { text: "乙未 辛巳 癸巳 戊午", effective_local: "1955-06-01T12:45:00" }
+    status: formula_derived
+  - id: SAJU-BOUND-DST-1988
+    kind: chart
+    desc: "1988 일광절약시간: 벽시계 11:30 KDT → 표준시 10:30 → 巳시 (단순 계산 시 午시)"
+    input: { date: "1988-07-01", time: "11:30", tz: Asia/Seoul }
+    expected: { text: "戊辰 戊午 丁巳 乙巳", effective_local: "1988-07-01T10:30:00" }
+    status: formula_derived
+  - id: SAJU-BOUND-DST-GAP
+    kind: chart
+    desc: "일광절약시간 시작으로 존재하지 않는 시각(1987-05-10 02:30) → 오류"
+    input: { date: "1987-05-10", time: "02:30", tz: Asia/Seoul }
+    expected: { error: calendar_input_invalid }
+    status: formula_derived
+
+  # ---------------- 시간 범위 분할 ----------------
   - id: SAJU-RANGE-001
+    kind: range
     desc: "시간 범위 09:00~12:00 분할 (진태양시 off)"
-    input: { calendar: solar, date: "2027-01-15", time_range: ["09:00", "12:00"], tz: "Asia/Seoul", true_solar_time: off }
+    input: { date: "2027-01-15", time_range: ["09:00", "12:00"], tz: Asia/Seoul }
     expected:
       segments:
-        - { from: "09:00", to: "11:00", hour_pillar: "己巳" }
-        - { from: "11:00", to: "12:00", hour_pillar: "庚午" }
+        - { from: "09:00:00", to: "11:00:00", hour: "己巳" }
+        - { from: "11:00:00", to: "12:00:00", hour: "庚午" }
     status: formula_derived
 
   - id: SAJU-RANGE-002
-    desc: "시간 범위 09:00~12:00 분할 (진태양시 longitude_only, 서울 126.978°E)"
-    input: { calendar: solar, date: "2027-01-15", time_range: ["09:00", "12:00"], tz: "Asia/Seoul", true_solar_time: longitude_only, longitude: 126.978 }
+    kind: range
+    desc: "시간 범위 09:00~12:00 분할 (지방평균시, 서울 126.978°E → −32분 05초)"
+    input: { date: "2027-01-15", time_range: ["09:00", "12:00"], tz: Asia/Seoul,
+             options: { true_solar_time: longitude_only, longitude: 126.978 } }
     expected:
-      offset_minutes: -32.09
       segments:
-        - { hour_pillar: "戊辰", approx_from: "09:00", approx_to: "09:32" }
-        - { hour_pillar: "己巳", approx_from: "09:32", approx_to: "11:32" }
-        - { hour_pillar: "庚午", approx_from: "11:32", approx_to: "12:00" }
+        - { from: "09:00:00", to: "09:32:06", hour: "戊辰" }
+        - { from: "09:32:06", to: "11:32:06", hour: "己巳" }
+        - { from: "11:32:06", to: "12:00:00", hour: "庚午" }
     status: formula_derived
 
-  # ---- 경계 테스트 (기대값 Phase 3에서 외부 기준으로 확정) ----
-  - id: SAJU-BOUND-IPCHUN
-    desc: "입춘 절입 직전/직후 연주·월주 전환"
-    input: { year: 2027, around: ipchun, delta_minutes: [-1, 1] }
-    expected: pending
-    status: pending
-  - id: SAJU-BOUND-ZI
-    desc: "23:30 출생 — jojasi_next_day vs yajasi_same_day 일주·시주 차이"
-    input: { calendar: solar, datetime: "2027-01-15T23:30", tz: "Asia/Seoul" }
-    expected: pending
-    status: pending
-  - id: SAJU-BOUND-LEAP
-    desc: "음력 윤달 입력 ↔ 양력 변환 (윤달 존재 연도)"
-    input: { calendar: lunar, leap_month: true }
-    expected: pending
-    status: pending
-  - id: SAJU-BOUND-KST-HIST
-    desc: "1955년(UTC+8:30)·1988년(DST) 출생 표준시 보정"
-    expected: pending
-    status: pending
-  - id: SAJU-BOUND-UNKNOWN-TIME
-    desc: "시간 미정 → 시주 12개 시나리오 전체 나열"
-    expected: { segments_count: 12 }
+  - id: SAJU-RANGE-003
+    kind: range
+    desc: "시간 범위 09:00~12:00 분할 (진태양시 + 균시차, 1월 중순 균시차 약 −9분)"
+    input: { date: "2027-01-15", time_range: ["09:00", "12:00"], tz: Asia/Seoul,
+             options: { true_solar_time: with_equation_of_time, longitude: 126.978 } }
+    expected:
+      segments:
+        - { from: "09:00:00", to: "09:41:15", hour: "戊辰" }
+        - { from: "09:41:15", to: "11:41:17", hour: "己巳" }
+        - { from: "11:41:17", to: "12:00:00", hour: "庚午" }
+    tolerance_seconds: 2
     status: formula_derived
+
+  - id: SAJU-BOUND-IPCHUN
+    kind: range
+    desc: "입춘 당일 09:00~12:00 — 절입 순간에 연주·월주 동시 전환"
+    input: { date: "2027-02-04", time_range: ["09:00", "12:00"], tz: Asia/Seoul }
+    expected:
+      segments:
+        - { from: "09:00:00", to: "10:46:19", text: "丙午 辛丑 甲寅 己巳" }
+        - { from: "10:46:19", to: "11:00:00", text: "丁未 壬寅 甲寅 己巳", changed: [year, month] }
+        - { from: "11:00:00", to: "12:00:00", text: "丁未 壬寅 甲寅 庚午", changed: [hour] }
+    status: formula_derived
+    verify_with: SRC-KASI-TERMS
+
+  - id: SAJU-BOUND-UNKNOWN-TIME
+    kind: range
+    desc: "시간 미정 → 하루 전체. 子시가 00–01시와 23–24시(일주가 다름)로 나뉘어 13구간, 지지는 12종"
+    input: { date: "2027-01-15", tz: Asia/Seoul }
+    expected: { segments_count: 13, distinct_hour_branches: 12 }
+    status: formula_derived
+    notes: "Phase 0 초안의 12구간은 자시 분할을 고려하지 않은 오류 — Phase 3에서 정정"

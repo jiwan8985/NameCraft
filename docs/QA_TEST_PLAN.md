@@ -22,6 +22,7 @@ CI 서비스는 사용하지 않고(기획서 Phase 1 "CI 없는 로컬 테스�
 - `status: formula_derived` — 공식으로 산출했으나 외부 기준 미대조. 통과해도 Phase 3 완료 조건 불충족.
 - `status: externally_verified` — 출처·조회일 기록. Phase 3/4 완료 게이트는 이 상태 케이스로 판단.
 - `status: pending` — `xfail/skip`. **통과로 집계하지 않음**(기획서 §21.1).
+- `cross_checks` — 엔진과 독립된 구현·자료와의 자동 대조(예: 일진 ↔ 음력 라이브러리). `externally_verified`를 대신하지 않는다.
 
 ## 3. 필수 경계 테스트 (기획서 §22.2) → 담당 Phase
 

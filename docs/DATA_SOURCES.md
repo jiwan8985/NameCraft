@@ -13,11 +13,11 @@
 | SRC-SCOURT-STATS | 대법원 전자가족관계등록 — 출생신고 이름 통계 | 이름 인기도(공개 상위 범위) | 공식(통계) | 화면 확인 후 수동 기록, 집계 기준 저장 | 재이용 조건 확인 필요 | candidate |
 | SRC-KASI-LUNAR | 한국천문연구원(KASI) 음양력 정보 / 공공데이터포털 API | 양력↔음력·윤달 Golden Test 기준값 | 공식(천문) | 공공데이터포털 오픈API(인증키는 **사용자 개인 발급**, 앱 필수 아님) 또는 KASI 웹 수동 조회 | 공공누리 유형 확인 필요 | candidate |
 | SRC-KASI-TERMS | KASI 24절기 절입 시각 | 절기 경계 Golden Test | 공식(천문) | 동일 | 동일 | candidate |
-| SRC-JPL-DE | NASA JPL 행성력(DE421/DE440) + Skyfield | 절기(태양 황경 15° 배수) 독립 계산·교차검증 | 과학 기준 | 로컬 파일 다운로드 | JPL 공개 데이터(미 연방 저작물), Skyfield MIT | candidate |
+| SRC-JPL-DE | NASA JPL DE421 + Skyfield 1.55 | 절기(태양 황경 15° 배수), 진태양시 | 과학 기준 | 원본 다운로드 → 태양·지구·목성·토성 구간 1900–2050 발췌(`datasets/ephemeris/`, 7.3MB, Git 포함) | NASA/JPL 공개 자료(별도 라이선스 파일 없음 — 상용화 전 재확인), Skyfield·jplephem MIT | **ingested** |
 | SRC-UNIHAN | Unicode Unihan Database 18.0.0 | 코드포인트, 총획(`kTotalStrokes`), 부수-획(`kRSUnicode`), 한국 독음·플래그(`kHangul`), `kKoreanName`(2015/2018판), 이체자 | 표준(Unicode) — **법적 기준 아님** | `tasks.py fetch-unihan` (zip, sha256 기록) | Unicode License v3 — 다운로드한 license.txt 원문 확인(2026-11-19) | **ingested** (8,525자) |
 | SRC-KRDICT | 국립국어원 한국어기초사전 | 어휘 의미·발음·동음이의어 | 공식(국어) | 오픈 API 또는 공개 데이터 | CC BY-SA 2.0 KR로 알려져 있음 — 원문 확인 필요 | license_review |
 | SRC-STDICT | 국립국어원 표준국어대사전 | 표준 발음·어휘 의미 보완 | 공식(국어) | 오픈 API | 이용약관 확인 필요 | candidate |
-| SRC-KLC-LIB | `korean-lunar-calendar` (Python) | 음양력 변환 구현 후보 | 비공식(구현체) | PyPI | MIT — 확인 필요 | candidate |
+| SRC-KLC-LIB | `korean-lunar-calendar` 0.4.0 | 양력↔음력·윤달 변환, 일진 교차검증 | 비공식(구현체) | PyPI | MIT (패키지 메타데이터 확인) | **ingested** |
 | SRC-DEV-SURNAME-SEED | 개발자 큐레이션 성씨 시드 (`datasets/seed/surnames.yaml`) | 성씨 사전 초기값 (단성 112 + 복성 8) | 개발용 — 공식 아님 | 저장소 파일 | 프로젝트 자체 | approved (레코드는 unverified) |
 | SRC-NUM-TRAD | 수리성명학 81수리 길흉표, 원획 변환 규칙(부수 본자 환원) | 전통 해석 규칙 | **전통 해석(학파별)** | 문헌 수동 정리, 학파·서지 기록 | 저작물 인용 범위 확인 필요 — 표 자체 전재 금지, 규칙 요약만 | candidate |
 
