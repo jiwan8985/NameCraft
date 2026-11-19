@@ -1,0 +1,22 @@
+# 로컬 전용 실행. 포트는 127.0.0.1 에만 바인딩한다 (기획서 §31.2).
+services:
+  api:
+    build: { context: ., dockerfile: docker/api.Dockerfile }
+    environment:
+      NAMECRAFT_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+    volumes:
+      - namecraft-var:/app/var
+    ports:
+      - "127.0.0.1:8000:8000"
+  web:
+    build: { context: ., dockerfile: docker/web.Dockerfile }
+    environment:
+      NAMECRAFT_API_URL: http://api:8000
+      NAMECRAFT_TOKEN_FILE: /shared/local_token
+    volumes:
+      - namecraft-var:/shared:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [api]
+volumes:
+  namecraft-var:

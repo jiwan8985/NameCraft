@@ -1,0 +1,29 @@
+[project]
+name = "namecraft-ai"
+version = "0.1.0"
+description = "NameCraft AI — 검증 가능한 개인용 작명 플랫폼 (backend)"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.165",
+  "uvicorn[standard]>=0.54",
+  "sqlalchemy>=2.1",
+  "alembic>=1.20",
+  "pydantic>=2.14",
+  "pydantic-settings>=2.16",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.2", "httpx>=0.28", "hypothesis>=6.170", "jsonschema>=4.26"]
+
+# 정확한 버전 고정은 requirements.lock (pip freeze) 참조.
+
+[tool.pytest.ini_options]
+pythonpath = ["backend", "apps/api"]
+testpaths = ["backend/tests"]
+addopts = "-q"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+markers = [
+  "golden: datasets/golden-tests 기반 테스트",
+  "security: 보안/정책 정적 검사",
+]

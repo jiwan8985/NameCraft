@@ -6,15 +6,15 @@
 
 | 계층 | 범위 | 도구(예정) | 실행 명령(예정) |
 |---|---|---|---|
-| 단위 | 도메인 계산(달력·사주·수리·발음), 정규화, 가중치 | pytest, hypothesis | `make test-api` |
-| Golden | `datasets/golden-tests/*.yaml` 로더 기반 파라미터 테스트 | pytest | `make test-golden` |
+| 단위 | 도메인 계산(달력·사주·수리·발음), 정규화, 가중치 | pytest, hypothesis | `python scripts/tasks.py test-api` |
+| Golden | `datasets/golden-tests/*.yaml` 로더 기반 파라미터 테스트 | pytest | `pytest -m golden` |
 | 속성 기반 | 결정론, 중복 없음, 제약 준수, 가중치 정규화 | hypothesis | 단위에 포함 |
-| 계약 | OpenAPI 스키마·공통 응답 필드(REQ-NF-001) | schemathesis 또는 pytest | `make test-contract` |
-| 프런트 단위 | 컴포넌트·상태 배지 | vitest + testing-library | `make test-web` |
-| E2E | 생성→분석→비교→시뮬레이션→보고서, 모바일 | Playwright | `make test-e2e` |
-| 보안 | 권한 우회, 업로드, LLM 출력 주입, 로그 누출, 인증정보 미수집 | pytest + 정적 grep 검사 | `make test-security` |
+| 계약 | OpenAPI 스키마·공통 응답 필드(REQ-NF-001) | schemathesis 또는 pytest | `pytest` (Phase 2~) |
+| 프런트 단위 | 컴포넌트·상태 배지 | vitest + testing-library | `python scripts/tasks.py test-web` |
+| E2E | 생성→분석→비교→시뮬레이션→보고서, 모바일 | Playwright | (Phase 8~) |
+| 보안 | 권한 우회, 업로드, LLM 출력 주입, 로그 누출, 인증정보 미수집 | pytest + 정적 grep 검사 | `pytest -m security` |
 
-CI 서비스는 사용하지 않고(기획서 Phase 1 "CI 없는 로컬 테스트 명령"), `make test` 한 번으로 전체 로컬 실행.
+CI 서비스는 사용하지 않고(기획서 Phase 1 "CI 없는 로컬 테스트 명령"), `python scripts/tasks.py test` 한 번으로 전체 로컬 실행.
 
 ## 2. Golden Test 정책
 

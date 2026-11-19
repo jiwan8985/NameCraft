@@ -2,8 +2,8 @@
 
 | Phase | 목표 | 상태 | 커밋 | 비고 |
 |---|---|---|---|---|
-| 0 | 요구사항 확정·레퍼런스 확보 | **완료 보고(승인 대기)** | (이 커밋) | 아래 상세 |
-| 1 | Monorepo/기반 환경 | 대기 | | |
+| 0 | 요구사항 확정·레퍼런스 확보 | 완료(승인됨) | b224e69 | |
+| 1 | Monorepo/기반 환경 | **완료 보고(승인 대기)** | (이 커밋) | 아래 상세 |
 | 2 | 성씨·한자·어휘 DB | 대기 | | |
 | 3 | 만세력·사주 엔진 | 대기 | | |
 | 4 | 전통 성명학 | 대기 | | |
@@ -15,6 +15,48 @@
 | 10 | 자료 교차검증·최종 점검 | 대기 | | |
 | 11 | 보고서·PWA·백업·AI 관제 | 대기 | | |
 | 12 | 성능·보안·출시 | 대기 | | |
+
+## Phase 1 — 완료 보고 (2026-11-19)
+
+### 산출물
+| 기획서 요구 | 구현 |
+|---|---|
+| Next.js | `apps/web` — Next 16.4 + React 19.3 + Tailwind v4 + shadcn/ui 방식 컴포넌트, §15 화면 19개 라우트(placeholder), 반응형 내비, PWA manifest, 라이트/다크 토큰 |
+| FastAPI | `apps/api/namecraft_api` — 앱 팩토리, 공통 응답 envelope(REQ-NF-001), 구조화 오류, CORS 제한 |
+| DB | SQLAlchemy 2 + Alembic, SQLite 기본. 마이그레이션 `0001`(users, audit_logs, reference_sources, data_release_versions) |
+| Docker | `docker-compose.yml` + `docker/*.Dockerfile`, 127.0.0.1 바인딩 |
+| CI 없는 로컬 테스트 명령 | `python scripts/tasks.py test` (pytest + vitest + tsc) |
+| 기본 인증 | 로컬 단일 사용자 토큰 + Next 서버 프록시(토큰 브라우저 비노출, 교차 출처/CSRF 차단) |
+| (§32) AI UI 라우트·Collector 뼈대 | `AIProvider`/`UsageCollector` 프로토콜, mock 3종, `/api/v1/ai/providers` (mock 표시), `/ai/providers` 화면 + 오류 UX(규칙 기반 폴백 안내·재시도) |
+| 기타 | PII 로그 마스킹 필터, `.env.example`(유료 API 키 없음), `docs/ARCHITECTURE.md`, `docs/API_CONTRACT.md` |
+
+### 완료 게이트: "원클릭 로컬 기동 · API 헬스체크"
+| 확인 | 결과 |
+|---|---|
+| `tasks.py dev` 실제 기동 → `GET /api/v1/health` | 200, `db: {ok: true, revision: "0001"}` |
+| 토큰 없이 보호 API | 401 |
+| 웹 프록시 경유 `/ai/providers` | 200, mock 3종 (ollama unknown / claude_code·antigravity disabled) |
+| 프록시 교차 출처 요청 / CSRF 헤더 없는 POST | 403 / 403 |
+| 웹 라우트 `/dashboard`, `/ai/providers`, `/projects/abc/recommendations`, `/admin/data` | 200 |
+| `docker compose build` + `up` → health·프록시 | 성공 (동일 결과) |
+| `next build` (프로덕션) | 성공, 경고 0 |
+
+### 테스트 결과
+| 묶음 | 통과 | 실패 |
+|---|---:|---:|
+| pytest (API 기반 6, AI mock 6, 보안 정책 5, 데이터셋 구조 4) | 21 | 0 |
+| vitest (라우트 IA 2, 프록시 가드 4, Provider UI·배지 3) | 9 | 0 |
+| tsc --noEmit | 통과 | |
+
+Golden test의 **계산** 검증은 아직 없음(구조 검증만) — Phase 3·4 범위.
+
+### 알려진 문제 / 메모
+- 런타임은 Windows Python 3.14 + Windows Node 24(D-010). WSL에서 `uv` 설치가 자동 권한 정책으로 거부되어 기존 설치 도구를 사용함.
+- Windows에서 `tasks.py dev` 종료 시 uvicorn reload 워커가 남는 문제 발견 → `taskkill /T`로 트리 종료하도록 수정(수정 후 재기동 검증은 미실시, 테스트 스위트는 재통과).
+- `packages/contracts`·`packages/design-system`은 필요 시점까지 보류(ARCHITECTURE.md §2).
+
+### 다음 Phase(2) 준비 사항
+- 성씨·한자·어휘 DB 스키마/시드/import 파이프라인/조회 API. **공식 인명용 한자표 파일과 이용조건 확인이 필요**(DATA_SOURCES §4) — 확보 전에는 Unihan 기반 `unverified` 데이터와 소규모 sample로 파이프라인만 검증.
 
 ## Phase 0 — 완료 보고 (2026-11-19)
 

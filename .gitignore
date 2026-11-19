@@ -4,3 +4,8 @@ node_modules/
 __pycache__/
 *.db
 .env
+.next/
+*.tsbuildinfo
+next-env.d.ts
+.pytest_cache/
+var/
