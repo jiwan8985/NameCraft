@@ -67,7 +67,8 @@ def migrate() -> int:
 
 
 API_CMD = [PY, "-m", "uvicorn", "namecraft_api.main:create_app", "--factory", "--host", "127.0.0.1",
-           "--port", "8000", "--reload", "--reload-dir", "backend", "--reload-dir", "apps/api"]
+           "--port", "8000", "--reload", "--reload-dir", "backend", "--reload-dir", "apps/api",
+           "--no-access-log"]  # 기본 접근 로그는 쿼리·ID 를 남김 → 앱 미들웨어가 라우트 틀만 기록
 
 
 def kill_tree(proc: subprocess.Popen) -> None:

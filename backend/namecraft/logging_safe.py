@@ -28,10 +28,14 @@ def redact_text(text: str) -> str:
     return _TIME_RE.sub(REDACTED, text)
 
 
+_BUILTIN_ATTRS = frozenset(logging.LogRecord("", 0, "", 0, "", None, None).__dict__) | {"message", "asctime"}
+
+
 class RedactingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         for key in list(record.__dict__):
-            if key.lower() in SENSITIVE_KEYS:
+            # 'name'(로거 이름) 같은 LogRecord 기본 속성은 건드리지 않고, extra 로 넘어온 민감 키만 가린다
+            if key not in _BUILTIN_ATTRS and key.lower() in SENSITIVE_KEYS:
                 setattr(record, key, REDACTED)
         if isinstance(record.msg, str):
             record.msg = redact_text(record.msg)

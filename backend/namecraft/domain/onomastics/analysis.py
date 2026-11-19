@@ -89,6 +89,11 @@ def _plainify(s: str) -> str:
     return "".join(out)
 
 
+@lru_cache(maxsize=256)
+def _plain_word(word: str) -> str:
+    return _plainify(word)
+
+
 def caution_candidates(full: str, surname_len: int) -> dict[str, Any]:
     given = full[surname_len:]
     forms = {
@@ -96,15 +101,17 @@ def caution_candidates(full: str, surname_len: int) -> dict[str, Any]:
         "full_written": full, "full_pronounced": pronounce(full).pronounced,
     }
     hits = []
+    plain_forms = {k: _plainify(v) for k, v in forms.items()}
     for w in _rules("caution-words-ko.yaml")["words"]:
         word = w["word"]
+        plain_word = _plain_word(word)
         for form_key, form in forms.items():
             if w["match"] == "whole":
                 exact = form == word and form_key.startswith("given")
                 loose = False
             else:
                 exact = word in form
-                loose = not exact and len(word) >= 2 and _plainify(word) in _plainify(form)
+                loose = not exact and len(word) >= 2 and plain_word in plain_forms[form_key]
             if exact or loose:
                 hits.append({"word": word, "category": w["category"], "found_in": form_key,
                              "match": "exact" if exact else "similar_sound"})

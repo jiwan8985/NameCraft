@@ -23,7 +23,7 @@ from namecraft.domain.numerology.core import JAWON_BY_RADICAL, four_gyeok, luck_
 from namecraft.domain.onomastics.analysis import meaning_review
 from namecraft.domain.text import codepoint, is_hangul_syllable, normalize_name_text
 from namecraft.services.lexicon import (
-    OFFICIAL_NOT_LISTED, OFFICIAL_VERIFIED, official_status, stroke_map,
+    OFFICIAL_NOT_LISTED, OFFICIAL_VERIFIED, official_status, official_statuses, stroke_map, stroke_maps,
 )
 
 MAX_PER_SYLLABLE = 40
@@ -69,23 +69,31 @@ def _radical(rs: str | None) -> int | None:
 
 
 def candidates_for_syllable(session: Session, syllable: str, *, exclude_hanja: set[str] = frozenset(),
-                            include_compat: bool = False, limit: int = MAX_PER_SYLLABLE) -> list[HanjaInfo]:
-    rows = session.scalars(
+                            include_compat: bool = False, limit: int = MAX_PER_SYLLABLE,
+                            cache: dict | None = None) -> list[HanjaInfo]:
+    """cache: 한 요청 안에서만 쓰는 메모(요청 간 공유하지 않음 — 공식 자료 갱신 즉시 반영)."""
+    key = (syllable, frozenset(exclude_hanja), include_compat)
+    if cache is not None and key in cache:
+        return cache[key][:limit]
+    rows = [ch for ch in session.scalars(
         select(HanjaCharacter).join(HanjaReading, HanjaReading.codepoint == HanjaCharacter.codepoint)
         .where(HanjaReading.reading == syllable, HanjaReading.is_name_reading.is_(True))
         .distinct()).all()
+        if ch.char not in exclude_hanja and (include_compat or not ch.is_compatibility)]
+    cps = [ch.codepoint for ch in rows]
+    strokes = stroke_maps(session, cps)
+    official = official_statuses(session, cps, syllable)
+    reviews = meaning_review([{"hanja": ch.char, "definition_en": ch.definition_en} for ch in rows])["characters"]
     out = []
-    for ch in rows:
-        if ch.char in exclude_hanja or (ch.is_compatibility and not include_compat):
-            continue
-        st = stroke_map(session, ch.codepoint)
-        mr = meaning_review([{"hanja": ch.char, "definition_en": ch.definition_en}])["characters"][0]
+    for ch, mr in zip(rows, reviews):
+        st = strokes.get(ch.codepoint, {})
         out.append(HanjaInfo(ch.char, ch.codepoint, syllable, st.get("original"), st.get("modern"),
                              bool(ch.unihan_korean_education), _radical(ch.radical_stroke), ch.definition_en,
-                             mr["caution_keywords"], official_status(session, ch.codepoint, syllable)["status"],
-                             ch.is_compatibility))
+                             mr["caution_keywords"], official[ch.codepoint], ch.is_compatibility))
     # 교육용 한자 우선, 주의 키워드 없는 글자 우선, 획수 적당(≤ 20) 우선, 코드포인트로 안정 정렬
     out.sort(key=lambda h: (not h.education, bool(h.caution), (h.original or 99) > 20, h.codepoint))
+    if cache is not None:
+        cache[key] = out
     return out[:limit]
 
 
@@ -135,7 +143,8 @@ def score_combination(chars: list[HanjaInfo], surname_strokes: list[int] | None,
 def reverse_search(session: Session, *, given_hangul: str, surname_hanja: str | None = None,
                    fixed: dict[int, str] | None = None, exclude_hanja: list[str] | None = None,
                    weights: dict[str, float] | None = None, use_traditional: bool = True,
-                   include_compat: bool = False, limit: int = 30) -> dict[str, Any]:
+                   include_compat: bool = False, limit: int = 30, max_per_syllable: int = MAX_PER_SYLLABLE,
+                   cache: dict | None = None) -> dict[str, Any]:
     given = normalize_name_text(given_hangul)
     if not given or len(given) > 4 or not all(is_hangul_syllable(c) for c in given):
         raise ReverseSearchError("한글 이름(1~4자)이 필요합니다.")
@@ -147,7 +156,8 @@ def reverse_search(session: Session, *, given_hangul: str, surname_hanja: str | 
 
     per_syllable: list[list[HanjaInfo]] = []
     for i, syl in enumerate(given):
-        cands = candidates_for_syllable(session, syl, exclude_hanja=excl, include_compat=include_compat)
+        cands = candidates_for_syllable(session, syl, exclude_hanja=excl, include_compat=include_compat,
+                                        limit=max_per_syllable, cache=cache)
         if i in fixed:
             cands = [c for c in cands if c.char == fixed[i]] or _fixed_lookup(session, fixed[i], syl)
         per_syllable.append(cands)

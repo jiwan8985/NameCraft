@@ -9,4 +9,4 @@ COPY scripts scripts
 COPY datasets datasets
 EXPOSE 8000
 # import-data: 마이그레이션 + 출처 동기화 + Unihan(datasets/raw 에 있을 때) + 성씨 시드. 원천 파일이 없으면 경고 후 계속.
-CMD ["sh", "-c", "python scripts/tasks.py import-data || python scripts/tasks.py migrate; exec uvicorn namecraft_api.main:create_app --factory --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python scripts/tasks.py import-data || python scripts/tasks.py migrate; exec uvicorn namecraft_api.main:create_app --factory --host 0.0.0.0 --port 8000 --no-access-log"]

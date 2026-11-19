@@ -62,3 +62,10 @@ def test_filter_masks_sensitive_extra_fields():
     rec.given_name = "지아"  # type: ignore[attr-defined]
     RedactingFilter().filter(rec)
     assert rec.given_name == REDACTED  # type: ignore[attr-defined]
+
+
+def test_filter_keeps_logger_name():
+    """회귀: 로거 이름(record.name)이 민감 키 'name' 과 겹쳐 가려지던 문제."""
+    rec = logging.LogRecord("namecraft.access", logging.INFO, __file__, 1, "GET /x 200", None, None)
+    RedactingFilter().filter(rec)
+    assert rec.name == "namecraft.access"

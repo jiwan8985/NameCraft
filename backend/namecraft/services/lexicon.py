@@ -38,6 +38,30 @@ def official_data_loaded(session: Session) -> bool:
                                .where(OfficialNameCharacterRule.is_sample.is_(False))))
 
 
+def official_statuses(session: Session, cps: list[str], reading: str | None) -> dict[str, str]:
+    """official_status 의 일괄 버전(상태 문자열만) — 같은 규칙, 쿼리 2번."""
+    if not cps:
+        return {}
+    rules: dict[str, list] = defaultdict(list)
+    for r in session.scalars(select(OfficialNameCharacterRule).where(OfficialNameCharacterRule.codepoint.in_(cps))):
+        rules[r.codepoint].append(r)
+    loaded = official_data_loaded(session)
+    out = {}
+    for cp in cps:
+        rs = rules.get(cp, [])
+        real = [r for r in rs if not r.is_sample and (reading is None or r.reading == reading)]
+        out[cp] = (OFFICIAL_VERIFIED if real else OFFICIAL_NOT_LISTED if loaded
+                   else OFFICIAL_SAMPLE if any(r.is_sample for r in rs) else OFFICIAL_UNKNOWN)
+    return out
+
+
+def stroke_maps(session: Session, cps: list[str]) -> dict[str, dict[str, int]]:
+    out: dict[str, dict[str, int]] = defaultdict(dict)
+    for s in session.scalars(select(HanjaStrokeCount).where(HanjaStrokeCount.codepoint.in_(cps))):
+        out[s.codepoint][s.system] = s.strokes
+    return out
+
+
 def official_status(session: Session, cp: str, reading: str | None = None) -> dict[str, Any]:
     rules = list(session.scalars(select(OfficialNameCharacterRule).where(OfficialNameCharacterRule.codepoint == cp)))
     real = [r for r in rules if not r.is_sample]

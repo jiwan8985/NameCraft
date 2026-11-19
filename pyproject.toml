@@ -1,6 +1,6 @@
 [project]
 name = "namecraft-ai"
-version = "0.1.0"
+version = "1.0.0rc1"
 description = "NameCraft AI — 검증 가능한 개인용 작명 플랫폼 (backend)"
 requires-python = ">=3.12"
 dependencies = [
@@ -31,4 +31,5 @@ filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
 markers = [
   "golden: datasets/golden-tests 기반 테스트",
   "security: 보안/정책 정적 검사",
+  "perf: 성능 예산 회귀 검사",
 ]

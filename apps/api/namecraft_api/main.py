@@ -13,6 +13,7 @@ from namecraft.auth import ensure_token
 from namecraft.config import Settings, get_settings
 from namecraft.errors import AppError
 from namecraft_api.deps import require_local_auth
+from namecraft_api.middleware import SecurityAndAccessLogMiddleware
 from namecraft_api.routers import ai, collab, health, imports, lexicon, names, numerology, projects, reports, saju
 
 API_PREFIX = "/api/v1"
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.local_token = ensure_token(settings.resolved_token_file)
 
+    app.add_middleware(SecurityAndAccessLogMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

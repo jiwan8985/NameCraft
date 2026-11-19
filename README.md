@@ -5,6 +5,10 @@
 - SSOT 기획서: [`NameCraft_AI_MASTER_PLAN_v2.1.md`](NameCraft_AI_MASTER_PLAN_v2.1.md)
 - 진행 현황: [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) · 아키텍처: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · API: [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
 
+## 현재 상태
+**1.0.0rc1 (출시 후보)** — Phase 0~12 구현 완료. 남은 일은 사용자 확인 항목(KASI 대조·공식 인명용 한자표 등)과 브라우저 E2E입니다: [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md)
+운영 안내 [`docs/OPERATIONS.md`](docs/OPERATIONS.md) · 위협 모델 [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) · 성능 [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)
+
 ## 원칙 요약
 - 법적 사실 · 결정론적 계산 · 전통 해석 · 주관/AI 평가를 분리 표시합니다.
 - AI는 후보 제안과 설명에만 사용하며, 한자 허용·획수·사주 계산을 대신하지 않습니다.

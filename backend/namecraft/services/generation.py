@@ -29,6 +29,7 @@ from namecraft.domain.text import is_hangul_syllable, normalize_name_text
 from namecraft.services.reverse_search import candidates_for_syllable, reverse_search
 
 GENERATOR_VERSION = "rule-gen-0.1.0"
+SUGGEST_PER_SYLLABLE = 12  # 생성 결과의 한자 '제안'은 음절별 상위 12자 조합에서 — 전체 조합은 역검색 화면에서
 PRESCREEN_LIMIT = 4000  # 1단계(저비용 선호 점수) 통과 후보 수 상한 — 2단계에서 발음·주의 분석
 _SONORANT = set("ㅇㄴㄹㅁ")
 _BRIGHT = set("ㅏㅐㅑㅒㅗㅘㅙㅚㅛ")
@@ -211,6 +212,7 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
     skipped_diversity = 0
     skipped_no_hanja = 0
     hanja_cache: dict[str, bool] = {}
+    syl_cache: dict = {}  # 이 요청 안에서만 재사용
     for cand in scored:
         if len(selected) >= req.count:
             break
@@ -227,7 +229,8 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
             skipped_diversity += 1
             continue
         if req.name_type in ("hanja", "any"):
-            ok = all(hanja_cache.setdefault(c, bool(candidates_for_syllable(session, c, limit=1))) for c in g)
+            ok = all(hanja_cache.setdefault(c, bool(candidates_for_syllable(session, c, limit=1, cache=syl_cache)))
+                     for c in g)
             if req.name_type == "hanja" and not ok:
                 skipped_no_hanja += 1
                 continue
@@ -236,7 +239,8 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
             if ok:
                 rs = reverse_search(session, given_hangul=g, surname_hanja=req.surname_hanja,
                                     fixed=req.fixed_hanja, exclude_hanja=req.exclude_hanja,
-                                    use_traditional=req.use_traditional, limit=3)
+                                    use_traditional=req.use_traditional, limit=3,
+                                    max_per_syllable=SUGGEST_PER_SYLLABLE, cache=syl_cache)
                 cand["hanja_suggestions"] = rs["combinations"]["passed"] or rs["combinations"]["on_hold"]
                 cand["hanja_counts"] = rs["counts"]
                 if cand["hanja_suggestions"]:
