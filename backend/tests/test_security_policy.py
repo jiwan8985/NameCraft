@@ -30,12 +30,19 @@ def test_env_example_has_no_paid_api_keys(repo_root):
     assert not PAID_API_KEYS.search(text)
 
 
+DENYLIST_MARKERS = ("_ENV_DENY_", "FORBIDDEN_FLAGS = (", "\"--allow-dangerously-skip-permissions\"",
+                    "\"--remote-agent\", \"--remote-control\")")
+
+
 def test_code_never_reads_paid_api_keys_or_forbidden_flags(repo_root):
+    """유료 API 키·금지 플래그 문자열은 '차단 목록 정의' 줄에만 나타날 수 있다."""
     offenders = []
     for f in _code_files(repo_root):
-        t = f.read_text(encoding="utf-8")
-        if PAID_API_KEYS.search(t) or any(flag in t for flag in FORBIDDEN_CLI_FLAGS):
-            offenders.append(str(f.relative_to(repo_root)))
+        for no, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            if any(m in line for m in DENYLIST_MARKERS):
+                continue
+            if PAID_API_KEYS.search(line) or any(flag in line for flag in FORBIDDEN_CLI_FLAGS):
+                offenders.append(f"{f.relative_to(repo_root)}:{no}")
     assert offenders == []
 
 

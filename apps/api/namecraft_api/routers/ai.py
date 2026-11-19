@@ -1,38 +1,177 @@
-"""AI Provider 라우트 — Phase 1 mock (기획서 §32 Phase 1)."""
+"""AI Provider 라우트 (기획서 §18, §29) — Phase 7 실제 탐지·설정·생성·수동 전달."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from namecraft.ai_gateway import default_mock_providers
 from namecraft.ai_gateway.protocols import ProviderId
-from namecraft.errors import NotFound
+from namecraft.ai_gateway.providers import FORBIDDEN_FLAGS, build_providers
+from namecraft.db.models import AIProviderSetting
+from namecraft.errors import AppError, NotFound
 from namecraft.provenance import Envelope, VerificationStatus, envelope
+from namecraft.services import ai_generation as aig
+from namecraft.services.generation import GenerateRequest
+from namecraft_api.deps import get_db
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-_MOCK_WARNING = {"code": "mock_data", "message": "Phase 1 mock 응답입니다. 실제 연결 상태가 아닙니다."}
+SUBSCRIPTION_NOTE = {"code": "subscription_only",
+                     "message": "Claude Code·Antigravity는 보유한 구독 계정의 공식 CLI 비대화형 모드만 사용합니다. 유료 API 키는 사용하지 않습니다."}
+
+
+def _providers(request: Request, db: Session):
+    return build_providers(aig.load_settings(db, request.app.state.settings.ollama_url))
 
 
 async def _describe(p) -> dict[str, Any]:
-    status = await p.connection_status()
-    status["capabilities"] = await p.capabilities()
-    return status
+    st = p.status()
+    st["capabilities"] = await p.capabilities()
+    return st
 
 
 @router.get("/providers", response_model=Envelope[list[dict[str, Any]]])
-async def list_providers():
-    data = [await _describe(p) for p in default_mock_providers()]
-    return envelope(data, verification_status=VerificationStatus.mock, warnings=[_MOCK_WARNING])
+async def list_providers(request: Request, db: Session = Depends(get_db)):
+    ps = _providers(request, db)
+    data = [await _describe(ps[k]) for k in ("ollama", "claude_code", "antigravity")]
+    return envelope(data, verification_status=VerificationStatus.calculated, warnings=[SUBSCRIPTION_NOTE])
 
 
 @router.post("/providers/{provider}/test", response_model=Envelope[dict[str, Any]])
-async def test_provider(provider: str):
+async def test_provider(provider: str, request: Request, db: Session = Depends(get_db)):
     if provider not in ProviderId.__members__:
         raise NotFound(f"알 수 없는 Provider: {provider}", details={"allowed": list(ProviderId.__members__)})
-    p = next(p for p in default_mock_providers() if p.id == provider)
-    data = await _describe(p)
-    data["test_result"] = "skipped_mock"
-    return envelope(data, verification_status=VerificationStatus.mock, warnings=[_MOCK_WARNING])
+    data = await _describe(_providers(request, db)[provider])
+    data["test_result"] = "status_only"  # 연결 확인은 읽기 전용(버전·모델 목록)만 — 생성 호출·한도 소모 없음
+    return envelope(data, verification_status=VerificationStatus.calculated)
+
+
+class ProviderPrefIn(BaseModel):
+    provider_id: Literal["ollama", "claude_code", "antigravity"]
+    enabled: bool | None = None
+    command: list[str] | None = Field(default=None, max_length=8)
+    model_id: str | None = Field(default=None, max_length=100)
+    timeout_s: int | None = Field(default=None, ge=10, le=600)
+    fallback_rank: int | None = Field(default=None, ge=0, le=99)
+    allow_auto_fallback: bool | None = None
+
+
+@router.patch("/preferences", response_model=Envelope[dict[str, Any]])
+def patch_preferences(body: ProviderPrefIn, db: Session = Depends(get_db)):
+    if body.command is not None:
+        if not body.command or any(not isinstance(a, str) or not a.strip() for a in body.command):
+            raise AppError("command 는 비어 있지 않은 문자열 목록이어야 합니다.")
+        if any(f in body.command for f in FORBIDDEN_FLAGS):
+            raise AppError("허용되지 않는 CLI 옵션이 포함되어 있습니다.", details={"forbidden": FORBIDDEN_FLAGS})
+    row = db.get(AIProviderSetting, body.provider_id) or AIProviderSetting(
+        provider_id=body.provider_id, enabled=body.provider_id == "ollama")
+    for k in ("enabled", "command", "model_id", "timeout_s", "fallback_rank", "allow_auto_fallback"):
+        v = getattr(body, k)
+        if v is not None:
+            setattr(row, k, v)
+    db.add(row)
+    db.commit()
+    return envelope({k: getattr(row, k) for k in ("provider_id", "enabled", "command", "model_id", "timeout_s",
+                                                  "fallback_rank", "allow_auto_fallback")},
+                    warnings=[SUBSCRIPTION_NOTE] if body.provider_id != "ollama" else [])
+
+
+class AIGenerateIn(BaseModel):
+    provider: Literal["auto", "ollama", "claude_code", "antigravity", "none"] = "auto"
+    surname_hangul: str = Field(min_length=1, max_length=4)
+    sex: Literal["m", "f", "n"] = "n"
+    syllables: int = Field(default=2, ge=1, le=3)
+    style_tags: dict[Literal["modern", "traditional", "soft", "bright"], float] = Field(default_factory=dict)
+    liked_examples: list[str] = Field(default_factory=list, max_length=30)
+    include_syllables: list[str] = Field(default_factory=list, max_length=20)
+    exclude_syllables: list[str] = Field(default_factory=list, max_length=50)
+    count: int = Field(default=20, ge=1, le=60)
+    send_fields: list[str] | None = None
+    consent: bool = False
+    dry_run: bool = False
+    seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
+
+
+def _req(body) -> GenerateRequest:
+    return GenerateRequest(surname_hangul=body.surname_hangul, sex=body.sex, syllables=body.syllables,
+                           name_type="any", style_tags=body.style_tags, liked_examples=body.liked_examples,
+                           include_syllables=body.include_syllables, exclude_syllables=body.exclude_syllables,
+                           count=body.count)
+
+
+@router.post("/generate", response_model=Envelope[dict[str, Any]])
+def ai_generate(body: AIGenerateIn, request: Request, db: Session = Depends(get_db)):
+    req = _req(body)
+    try:
+        payload = aig.build_payload(req, body.send_fields or aig.DEFAULT_SEND)
+    except ValueError as e:
+        raise AppError(str(e)) from None
+    if body.dry_run:
+        return envelope({"preview": aig.preview(body.provider, payload)})
+    try:
+        res = aig.run_ai_generation(db, req, provider=body.provider, send_fields=body.send_fields,
+                                    consent=body.consent, seed=body.seed,
+                                    ollama_url=request.app.state.settings.ollama_url)
+    except aig.AIConsentRequired as e:
+        raise AppError("외부 AI 로 보내기 전에 전송 내용 확인과 동의가 필요합니다.",
+                       details={"consent_required": True, "preview": e.preview}) from None
+    db.commit()
+    return _result_envelope(res)
+
+
+def _result_envelope(res: aig.AIRunResult):
+    warnings = []
+    if res.fallback_reason:
+        warnings.append({"code": "ai_fallback", "message": "AI 경로를 사용할 수 없어 규칙 기반 엔진으로 생성했습니다."})
+    if res.provider_used != "rule_based":
+        warnings.append({"code": "ai_generated",
+                         "message": "AI 가 제안한 후보를 서버에서 다시 검증했습니다. AI 설명은 주관적 의견입니다."})
+    return envelope({"provider_used": res.provider_used, "execution_mode": res.mode, "candidates": res.candidates,
+                     "record_id": res.record_id, "fallback_reason": res.fallback_reason, "attempts": res.attempts,
+                     "validation": res.validation},
+                    verification_status=VerificationStatus.subjective if res.provider_used != "rule_based"
+                    else VerificationStatus.calculated, warnings=warnings)
+
+
+class HandoffIn(AIGenerateIn):
+    provider: Literal["claude_code", "antigravity"] = "claude_code"
+
+
+@router.post("/handoff/prompt", response_model=Envelope[dict[str, Any]])
+def handoff_prompt(body: HandoffIn):
+    try:
+        payload = aig.build_payload(_req(body), body.send_fields or aig.DEFAULT_SEND)
+    except ValueError as e:
+        raise AppError(str(e)) from None
+    return envelope({"preview": aig.preview(body.provider, payload), **aig.handoff_prompt(payload)},
+                    warnings=[{"code": "manual_handoff",
+                               "message": "자동 실행 대신 직접 붙여넣는 방식입니다. 붙여넣는 내용은 위 미리보기와 같습니다."}])
+
+
+class HandoffImportIn(BaseModel):
+    provider: Literal["claude_code", "antigravity"]
+    surname_hangul: str = Field(min_length=1, max_length=4)
+    syllables: int = Field(default=2, ge=1, le=3)
+    pasted: str = Field(min_length=2, max_length=50_000)
+
+
+@router.post("/handoff/import", response_model=Envelope[dict[str, Any]])
+def handoff_import(body: HandoffImportIn, db: Session = Depends(get_db)):
+    try:
+        doc = aig.parse_ai_json(body.pasted)
+    except Exception:
+        raise AppError("붙여넣은 내용이 요구 형식(JSON)과 맞지 않습니다.", details={"schema": aig.CANDIDATES_SCHEMA}) from None
+    v = aig.validate_candidates(db, doc, GenerateRequest(surname_hangul=body.surname_hangul, syllables=body.syllables,
+                                                         name_type="any"))
+    from namecraft.db.models import AIGenerationRecord
+
+    rec = AIGenerationRecord(task="generate_candidates", provider_id=body.provider, execution_mode="manual_handoff",
+                             prompt_version=aig.PROMPT_VERSION, status="ok" if not v["rejected"] else "partial",
+                             validation={"accepted": len(v["accepted"]), "rejected": v["rejected"][:50]})
+    db.add(rec)
+    db.commit()
+    return envelope({"provider_used": body.provider, "execution_mode": "manual_handoff", "record_id": rec.id, **v},
+                    verification_status=VerificationStatus.subjective)

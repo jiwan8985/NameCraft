@@ -8,6 +8,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -22,6 +23,17 @@ class Settings(BaseSettings):
     token_file: Path | None = None  # 기본: var_dir/local_token
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     data_version: str = "unreleased"  # Phase 2에서 data_release_versions와 연동
+    ollama_url: str = "http://127.0.0.1:11434"  # 로컬 Ollama (원격 주소 사용 금지 — §33.1)
+
+    @field_validator("ollama_url")
+    @classmethod
+    def _local_only(cls, v: str) -> str:
+        from urllib.parse import urlparse
+
+        host = urlparse(v).hostname
+        if host not in {"127.0.0.1", "localhost", "::1", "host.docker.internal"}:
+            raise ValueError("ollama_url 은 로컬 주소만 허용합니다(원격 모델 호출 금지).")
+        return v.rstrip("/")
 
     @property
     def resolved_database_url(self) -> str:

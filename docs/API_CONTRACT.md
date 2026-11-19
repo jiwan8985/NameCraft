@@ -31,8 +31,11 @@
 |---|---|---|---|---|
 | GET | `/api/v1/health` | 불필요 | 1 | 구현 — DB 연결·마이그레이션 리비전 포함, 미적용 시 `db_not_migrated` 경고 |
 | GET | `/api/v1/auth/whoami` | 필요 | 1 | 구현 — `local_single_user` |
-| GET | `/api/v1/ai/providers` | 필요 | 1 → 7 | **mock** (`verification_status: mock`, 각 항목 `is_mock: true`) |
-| POST | `/api/v1/ai/providers/{provider}/test` | 필요 | 1 → 7 | **mock** (`test_result: skipped_mock`), 미지원 provider는 404 |
+| GET | `/api/v1/ai/providers` | 필요 | 7 | 구현 — 실제 탐지(연결 상태·실행 모드·모델·기능). 구독형은 기본 `disabled` |
+| POST | `/api/v1/ai/providers/{provider}/test` | 필요 | 7 | 구현 — 읽기 전용 상태 확인(`status_only`), 생성·한도 소모 없음 |
+| PATCH | `/api/v1/ai/preferences` | 필요 | 7 | 구현 — 활성화·실행 명령·모델·시간 제한·자동 대체 순서/허용. 금지 플래그 거부 |
+| POST | `/api/v1/ai/generate` | 필요 | 7 | 구현 — `provider: auto/ollama/claude_code/antigravity/none`, `dry_run`(전송 미리보기), 외부 Provider 는 `consent: true` 필수. 실패 시 규칙 기반 폴백 |
+| POST | `/api/v1/ai/handoff/prompt`, `/ai/handoff/import` | 필요 | 7 | 구현 — 수동 전달용 프롬프트 / 붙여넣은 JSON 검증 |
 | GET | `/api/v1/surnames?q=` | 필요 | 2 | 구현 — 한글·한자·두음 변형(리/류 등) 검색, 동음이한자 전부 반환, 글자별 현대 필획(unverified)·원획(not_available) |
 | POST | `/api/v1/surnames/provisional` | 필요 | 2 | 구현 — 사전 외 성씨 임시 레코드(`is_provisional`, `SRC-USER-INPUT`, 확정 보류) |
 | GET | `/api/v1/hanja?char=&reading=&name_only=&limit=` | 필요 | 2 | 구현 — 독음 역검색, 글자 조회 시 호환한자 계열 함께 반환 |
@@ -46,7 +49,12 @@
 | POST | `/api/v1/names/generate` | 필요 | 6 | 구현 — 규칙 기반 생성. 결과 `passed`(공식 확인 또는 한글 이름) / `on_hold`(공식 미확인) / `quarantined`(비속어·비하 정확 일치), 통계(하드 필터 제거 수·다양성 건너뜀 등) |
 | POST | `/api/v1/names/reverse-search` | 필요 | 6 | 구현 — 한글 이름 → 음절별 인명용 독음 한자 → 조합별 정렬 점수(구성요소·가중치 공개), `passed/on_hold/rejected` |
 | POST | `/api/v1/names/alternative-hanja` | 필요 | 6 | 구현 — 현재 한자 조합에서 글자별 우려 사항과 점수가 개선되는 대안 |
-| 기타 §18 엔드포인트 | | 필요 | 7~11 | 미구현 |
+| POST/GET/PATCH | `/api/v1/projects`, `/projects/{id}` | 필요 | 7 | 구현 — 프로젝트(성씨·성별 선호·선호·하드 조건·분석 옵션) |
+| POST | `/api/v1/projects/{id}/candidates/generate` | 필요 | 7 | 구현 — 규칙/AI 생성 후 저장(기존 후보·제외 이름 재생성 안 함) |
+| POST/GET | `/api/v1/projects/{id}/candidates?sort=` | 필요 | 7 | 구현 — 수동 추가 / 종합·항목별 랭킹(`overall, phonetic, meaning, saju, numerology, usability, preference`) |
+| PATCH | `/api/v1/candidates/{id}` | 필요 | 7 | 구현 — `active/excluded/favorite` (제외 해제 = 다시 추천 허용) |
+| POST | `/api/v1/reactions` | 필요 | 7 | 구현 — 좋아요/싫어요/보류·이유·메모. 싫어요 → 제외 |
+| 기타 §18 엔드포인트 | | 필요 | 8~11 | 미구현 |
 
 ### `POST /saju/calculate` 요청
 

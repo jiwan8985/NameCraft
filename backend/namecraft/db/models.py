@@ -242,3 +242,111 @@ class NamePopularityRow(Base):
     name_hangul: Mapped[str] = mapped_column(String(20), index=True)
     rank: Mapped[int | None] = mapped_column(nullable=True)
     count: Mapped[int | None] = mapped_column(nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: 프로젝트·후보·반응·AI 기록 (기획서 §9, §16, §29, §33.4)
+# 사용량 기록에는 프롬프트 원문·출생정보·인증정보를 저장하지 않는다.
+# ---------------------------------------------------------------------------
+
+from sqlalchemy import UniqueConstraint  # noqa: E402
+
+
+class NamingProject(Base):
+    __tablename__ = "naming_projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(100))
+    surname_hangul: Mapped[str] = mapped_column(String(10))
+    surname_hanja: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    sex: Mapped[str] = mapped_column(String(1), default="n")
+    preferences: Mapped[dict] = mapped_column(JSON, default=dict)  # style_tags, liked_examples, syllables, name_type
+    constraints: Mapped[dict] = mapped_column(JSON, default=dict)  # include/exclude, fixed 등 하드 조건
+    analysis_options: Mapped[dict] = mapped_column(JSON, default=dict)  # 학파·가중치
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class NameCandidate(Base):
+    __tablename__ = "name_candidates"
+    __table_args__ = (UniqueConstraint("project_id", "given_hangul", "given_hanja", name="uq_candidate_name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("naming_projects.id", ondelete="CASCADE"), index=True)
+    given_hangul: Mapped[str] = mapped_column(String(10))
+    given_hanja: Mapped[str] = mapped_column(String(10), default="")  # 한자 없음 = "" (유니크 제약 위해)
+    source: Mapped[str] = mapped_column(String(20))  # rule_based | data_based | ai_based | user
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active | excluded | favorite
+    provider_id: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    generation_record_id: Mapped[str | None] = mapped_column(ForeignKey("ai_generation_records.id"), nullable=True)
+    ai_reason: Mapped[str | None] = mapped_column(Text, nullable=True)  # 검증 통과한 AI 설명(subjective)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class NameReaction(Base):
+    __tablename__ = "name_reactions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("name_candidates.id", ondelete="CASCADE"), index=True)
+    member: Mapped[str] = mapped_column(String(50), default="owner")
+    reaction: Mapped[str] = mapped_column(String(10))  # like | dislike | hold
+    reasons: Mapped[list] = mapped_column(JSON, default=list)
+    memo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AIGenerationRecord(Base):
+    """AI/규칙 생성 배치 기록 — 재현성(모델·프롬프트 버전·시드·검증 상태), 보낸 필드 '이름'만 저장."""
+
+    __tablename__ = "ai_generation_records"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("naming_projects.id", ondelete="SET NULL"), nullable=True)
+    task: Mapped[str] = mapped_column(String(30))
+    provider_id: Mapped[str] = mapped_column(String(30))  # rule_based 포함
+    model_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    execution_mode: Mapped[str] = mapped_column(String(30))
+    prompt_version: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    seed: Mapped[int | None] = mapped_column(nullable=True)
+    sent_fields: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(20))  # ok | partial | invalid | fallback | error
+    validation: Mapped[dict] = mapped_column(JSON, default=dict)
+    fallback_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AIProviderSetting(Base):
+    __tablename__ = "ai_provider_settings"
+
+    provider_id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(default=False)
+    command: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    model_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    timeout_s: Mapped[int] = mapped_column(default=120)
+    fallback_rank: Mapped[int] = mapped_column(default=99)  # 자동 대체 순서 (낮을수록 먼저)
+    allow_auto_fallback: Mapped[bool] = mapped_column(default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class AIInvocation(Base):
+    """NameCraft 내부 AI 호출 1건 = 1행 (§33.4: provider, mode, model_if_known, source_type, observed_at, quota_data_status)."""
+
+    __tablename__ = "ai_invocations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    provider_id: Mapped[str] = mapped_column(String(30), index=True)
+    execution_mode: Mapped[str] = mapped_column(String(30))
+    model_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    task: Mapped[str] = mapped_column(String(30))
+    project_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    status: Mapped[str] = mapped_column(String(20))  # success | error | timeout | rate_limited | invalid_output
+    duration_ms: Mapped[int | None] = mapped_column(nullable=True)
+    tokens_in: Mapped[int | None] = mapped_column(nullable=True)
+    tokens_out: Mapped[int | None] = mapped_column(nullable=True)
+    source_type: Mapped[str] = mapped_column(String(20), default="local_observed")
+    quota_data_status: Mapped[str] = mapped_column(String(20), default="unknown")
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    is_demo: Mapped[bool] = mapped_column(default=False)
+
+

@@ -131,3 +131,10 @@ def test_property_constraints_always_hold(lexicon_session, sex, syl):
                                                   name_type="hangul", exclude_initials=["ㅎ"]))
     for c in _all(r):
         assert len(c["given_hangul"]) == syl and not c["given_hangul"].startswith("이")
+
+
+def test_any_mode_never_drops_candidates_silently(lexicon_session):
+    """회귀: name_type=any 에서 한자 조합이 없는 후보가 결과 버킷에서 사라지던 문제."""
+    r = generate(lexicon_session, GenerateRequest(surname_hangul="심", surname_hanja="沈", count=10, name_type="any"))
+    assert r["stats"]["returned"] == len(r["passed"]) + len(r["on_hold"]) == 10
+    assert any(c["official_gate"] == "not_required" and c["hanja_possible"] is False for c in r["passed"])

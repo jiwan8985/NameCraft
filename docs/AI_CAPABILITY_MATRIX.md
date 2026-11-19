@@ -37,6 +37,16 @@
 
 **근거:** 두 CLI 모두 공식 `--print` 비대화형 모드를 제공하므로 *사용자 PC에서 사용자가 직접 켠 경우* 로컬 백엔드가 서브프로세스로 실행하는 것은 공식 인터페이스 사용이다. 그러나 (1) 구독 이용약관상 제3자 앱 자동화 허용 범위, (2) 원격 배포 시 사용 불가, (3) 한도 소모 가능성 때문에 **기본값은 비활성(`manual_handoff`)** 으로 둔다. → `DECISIONS.md` D-004.
 
+## 2-1. Phase 7 구현 결과 (2026-11-19)
+
+| Provider | 탐지 | 실행 명령 | 이 PC 확인 결과 |
+|---|---|---|---|
+| Ollama | `/api/version`, `/api/tags`, `/api/show`(capabilities로 생성/임베딩 구분) | `POST /api/chat` + `format`(JSON 스키마) + `seed` | 0.32.15 실행 중. 생성 모델 `qwen2.5-coder:7b-instruct-q4_K_M`, `phi4-mini:latest`, 임베딩 `nomic-embed-text`. phi4-mini 실제 생성 1회 성공(29초) — 한국어 이름 품질 낮음 |
+| Claude Code | `<command> --version` (현재 PATH 또는 사용자 지정 명령) | `-p --output-format json --tools "" --no-session-persistence --strict-mcp-config [--model]`, 프롬프트는 stdin, 빈 임시 폴더에서 실행 | Windows PATH 에는 없음. `["wsl.exe","-e","/home/<user>/.local/bin/claude"]` 지정 시 2.1.328 확인, 연동 꺼짐(disabled) |
+| Antigravity | 동일 | `-p --output-format json --mode plan --sandbox --disable-slash-commands --print-timeout Ns [--json-schema] [--model]` | `wsl.exe` 경유 1.5.9 확인, 연동 꺼짐 |
+
+공통: 서브프로세스 환경에서 `ANTHROPIC_*`·`GEMINI_*`·`GOOGLE_API*`·`OPENAI_*`·`*_API_KEY` 등 제거, 금지 플래그 포함 시 실행 거부, `total_cost_usd` 등 API 과금 필드 미저장. `POST /ai/providers/{p}/test` 는 버전·모델 목록만 확인(생성 호출 없음).
+
 ## 3. 금지 사항 (테스트로 강제)
 
 - `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GOOGLE_API_KEY` 등 유료 API 키를 읽거나 서브프로세스 환경에 주입하지 않는다(서브프로세스 실행 시 해당 변수 **제거**).

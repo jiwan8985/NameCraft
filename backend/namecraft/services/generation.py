@@ -232,17 +232,20 @@ def generate(session: Session, req: GenerateRequest) -> dict[str, Any]:
                 skipped_no_hanja += 1
                 continue
             cand["hanja_possible"] = ok
+            cand["official_gate"] = "not_required"  # 'any' 에서 한자 조합이 없으면 한글 이름으로 유지
             if ok:
                 rs = reverse_search(session, given_hangul=g, surname_hanja=req.surname_hanja,
                                     fixed=req.fixed_hanja, exclude_hanja=req.exclude_hanja,
                                     use_traditional=req.use_traditional, limit=3)
                 cand["hanja_suggestions"] = rs["combinations"]["passed"] or rs["combinations"]["on_hold"]
                 cand["hanja_counts"] = rs["counts"]
-                if not cand["hanja_suggestions"] and req.name_type == "hanja":
-                    skipped_no_hanja += 1
+                if cand["hanja_suggestions"]:
+                    cand["official_gate"] = "pass" if rs["combinations"]["passed"] else "on_hold"
+                elif req.name_type == "hanja":
+                    skipped_no_hanja += 1  # 공식 미수록(rejected)뿐이거나 조합 없음
                     continue
-                cand["official_gate"] = "pass" if rs["combinations"]["passed"] else (
-                    "on_hold" if rs["combinations"]["on_hold"] else "fail")
+                else:
+                    cand["hanja_possible"] = False
         else:
             cand["hanja_possible"] = None
             cand["official_gate"] = "not_required"  # 한글 이름은 인명용 한자 판정 대상 아님
