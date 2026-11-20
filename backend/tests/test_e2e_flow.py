@@ -57,3 +57,79 @@ def test_ai_disabled_flow_still_works(lexicon_client, lexicon_session):
     assert lexicon_client.get("/api/v1/candidates/nope").status_code == 404
     bad = lexicon_client.post("/api/v1/names/compare", json={"surname_hangul": "김", "names": [{"given_hangul": "x"}]})
     assert bad.status_code == 422
+
+
+def test_subscription_handoff_saves_valid_names_without_recording_unobserved_usage(lexicon_client):
+    client = lexicon_client
+    project = client.post("/api/v1/projects", json={
+        "surname_hangul": "심", "constraints": {"include_syllables": ["아"], "fixed_syllable": {"1": "아"}},
+    }).json()["data"]
+    path = f"/api/v1/projects/{project['id']}/candidates/handoff"
+    prompt = client.get(path).json()["data"]
+    assert "한글 이름 | 한자 | 뜻" in prompt["prompt"] and "심" not in prompt["prompt"] and "2번째 글자" in prompt["prompt"]
+    assert client.post(path, json={"provider": "claude_code", "pasted": "bad JSON"}).status_code == 400
+    body = {"provider": "claude_code", "pasted": json.dumps({"candidates": [
+        {"given_hangul": "지아", "reason": "부르기 편한 이름"}, {"given_hangul": "하린"},
+    ]})}
+    assert client.post(path, json=body).json()["data"]["saved"] == 1
+    assert client.post(path, json={"provider": "claude_code", "pasted": "1. 지아, 하린"}).json()["data"]["saved"] == 0
+    assert client.post(path, json={"provider": "antigravity", "pasted": "- 서아 | | 부드러운 이름"}).json()["data"]["saved"] == 1
+    items = client.get(f"/api/v1/projects/{project['id']}/candidates").json()["data"]["items"]
+    assert {(row["given_hangul"], row["source"], row["provider_id"]) for row in items} == {
+        ("지아", "ai_based", "claude_code"), ("서아", "ai_based", "antigravity"),
+    }
+    assert client.get("/api/v1/ai/sessions").json()["data"] == []
+    project_path = f"/api/v1/projects/{project['id']}"
+    assert client.delete(project_path).status_code == 200
+    assert client.get(project_path).status_code == 404
+
+
+def test_click_to_use_local_ai_without_enabling_other_providers(lexicon_client, lexicon_session, fake_ollama):
+    f = fake_ollama([{"name": "ko-fake", "caps": ["completion"]}],
+                    chat_content='{"candidates":[{"given_hangul":"지아"}]}')
+    lexicon_client.app.state.settings.ollama_url = f.url
+    lexicon_session.add_all([
+        AIProviderSetting(provider_id="ollama", enabled=False),
+        AIProviderSetting(provider_id="claude_code", enabled=True, allow_auto_fallback=True),
+    ])
+    lexicon_session.commit()
+
+    status = lexicon_client.get("/api/v1/ai/providers/ollama").json()["data"]
+    assert status["execution_mode"] == "native_local" and status["models"][0]["can_generate"]
+    project = lexicon_client.post("/api/v1/projects", json={"surname_hangul": "김"}).json()["data"]
+    path = f"/api/v1/projects/{project['id']}/candidates/generate"
+    response = lexicon_client.post(path, json={"provider": "ollama", "local_only": True})
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["provider_used"] == "ollama"
+    assert [candidate["given_hangul"] for candidate in data["saved"]] == ["지아"]
+    assert lexicon_session.get(AIProviderSetting, "ollama").enabled is False
+
+
+def test_ollama_recommendation_uses_memory_and_excludes_remote_models(lexicon_client, fake_ollama, monkeypatch):
+    from namecraft.services import ollama_recommendation as rec
+
+    f = fake_ollama([
+        {"name": "qwen-coder", "caps": ["completion"], "size": 5 * rec.GIB},
+        {"name": "phi4-mini", "caps": ["completion"], "size": 2 * rec.GIB},
+        {"name": "embed", "caps": ["embedding"], "size": rec.GIB},
+        {"name": "external:cloud", "caps": ["completion"], "size": rec.GIB},
+    ])
+    lexicon_client.app.state.settings.ollama_url = f.url
+    monkeypatch.setattr(rec, "hardware_snapshot", lambda: {
+        "logical_cpus": 16, "ram_available_bytes": 8 * rec.GIB, "ram_total_bytes": 32 * rec.GIB,
+        "gpus": [{"available_bytes": 2 * rec.GIB}],
+    })
+    path = "/api/v1/ai/providers/ollama/recommendation"
+    response = lexicon_client.get(path)
+    assert response.status_code == 200
+    result = response.json()["data"]
+    assert result["recommended"] == "phi4-mini"
+    assert [(m["name"], m["fit"]) for m in result["models"]] == [
+        ("phi4-mini", "ram"), ("qwen-coder", "ram"),
+    ]
+    response = lexicon_client.patch("/api/v1/ai/preferences", json={
+        "provider_id": "ollama", "model_id": result["recommended"],
+    })
+    assert response.status_code == 200
+    assert lexicon_client.get(path).json()["data"]["selected_model"] == "phi4-mini"

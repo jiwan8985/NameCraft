@@ -104,7 +104,9 @@ class OllamaProvider:
             if caps is None:
                 caps = ["embedding"] if "bert" in family or "embed" in (name or "") else ["completion"]
             models.append({"name": name, "family": family, "size": m.get("size"), "capabilities": caps,
-                           "can_generate": "completion" in caps})
+                           "can_generate": "completion" in caps,
+                           "is_remote": bool(m.get("remote_host") or m.get("remote_model")
+                                             or (name or "").endswith((":cloud", "-cloud")))})
         return models
 
     async def capabilities(self) -> dict[C, L]:
@@ -125,7 +127,7 @@ class OllamaProvider:
             return {**base, "state": ConnectionState.not_installed, "execution_mode": ExecutionMode.unavailable,
                     "message": "로컬 Ollama 서버(127.0.0.1:11434)에 연결할 수 없습니다. Ollama 앱을 실행하세요.",
                     "models": [], "version": None}
-        gen = [m for m in models if m["can_generate"]]
+        gen = [m for m in models if m["can_generate"] and not m["is_remote"]]
         if not self.s.enabled:
             return {**base, "state": ConnectionState.disabled, "execution_mode": ExecutionMode.unavailable,
                     "message": f"Ollama {version} 확인됨 — 사용 안 함으로 설정되어 있습니다.", "models": models,

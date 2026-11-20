@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from namecraft.ai_gateway.protocols import ProviderId
-from namecraft.ai_gateway.providers import FORBIDDEN_FLAGS, build_providers
+from namecraft.ai_gateway.providers import FORBIDDEN_FLAGS, OllamaProvider, build_providers
 from namecraft.db.models import AIProviderSetting
 from namecraft.errors import AppError, NotFound
 from namecraft.provenance import Envelope, VerificationStatus, envelope
@@ -27,6 +27,12 @@ def _providers(request: Request, db: Session):
     return build_providers(aig.load_settings(db, request.app.state.settings.ollama_url))
 
 
+def _local_ollama(request: Request, db: Session) -> OllamaProvider:
+    settings = aig.load_settings(db, request.app.state.settings.ollama_url)["ollama"]
+    settings.enabled = True
+    return OllamaProvider(settings)
+
+
 async def _describe(p) -> dict[str, Any]:
     st = p.status()
     st["capabilities"] = await p.capabilities()
@@ -38,6 +44,23 @@ async def list_providers(request: Request, db: Session = Depends(get_db)):
     ps = _providers(request, db)
     data = [await _describe(ps[k]) for k in ("ollama", "claude_code", "antigravity")]
     return envelope(data, verification_status=VerificationStatus.calculated, warnings=[SUBSCRIPTION_NOTE])
+
+
+@router.get("/providers/ollama", response_model=Envelope[dict[str, Any]])
+async def local_ollama_status(request: Request, db: Session = Depends(get_db)):
+    return envelope(await _describe(_local_ollama(request, db)))
+
+
+@router.get("/providers/ollama/recommendation", response_model=Envelope[dict[str, Any]])
+def ollama_recommendation(request: Request, db: Session = Depends(get_db)):
+    from namecraft.services.ollama_recommendation import hardware_snapshot, recommend_installed
+
+    hardware = hardware_snapshot()
+    status = _local_ollama(request, db).status()
+    models = recommend_installed(status["models"], hardware)
+    recommended = next((model["name"] for model in models if model["fit"] in {"gpu", "ram"}), None)
+    return envelope({"hardware": hardware, "models": models, "recommended": recommended,
+                     "selected_model": status.get("selected_model"), "message": status["message"]})
 
 
 @router.post("/providers/{provider}/test", response_model=Envelope[dict[str, Any]])
@@ -248,28 +271,30 @@ def _statuses(request: Request, db: Session) -> dict:
 
 
 @router.get("/usage/summary", response_model=Envelope[dict[str, Any]])
-def usage_summary(request: Request, include_demo: bool = False, db: Session = Depends(get_db)):
+def usage_summary(request: Request, provider: Literal["ollama"] | None = None, db: Session = Depends(get_db)):
     us.check_local_spike(db)
     db.commit()
-    return envelope(us.summary(db, _statuses(request, db), include_demo), warnings=USAGE_WARNINGS,
+    statuses = {provider: _local_ollama(request, db).status()} if provider else _statuses(request, db)
+    return envelope(us.summary(db, statuses, provider=provider), warnings=USAGE_WARNINGS,
                     verification_status=VerificationStatus.calculated)
 
 
 @router.get("/usage/timeseries", response_model=Envelope[dict[str, Any]])
-def usage_timeseries(metric: str = "requests", days: int = 7, include_demo: bool = False,
+def usage_timeseries(metric: str = "requests", days: int = 7,
                      tz: str = Query("Asia/Seoul", max_length=64), db: Session = Depends(get_db)):
-    return envelope(us.timeseries(db, metric=metric, days=days, tz=tz, include_demo=include_demo),
+    return envelope(us.timeseries(db, metric=metric, days=days, tz=tz),
                     warnings=USAGE_WARNINGS)
 
 
 @router.get("/usage/heatmap", response_model=Envelope[dict[str, Any]])
-def usage_heatmap(days: int = Query(30, ge=1, le=90), include_demo: bool = False, db: Session = Depends(get_db)):
-    return envelope(us.heatmap(db, days=days, include_demo=include_demo))
+def usage_heatmap(days: int = Query(30, ge=1, le=90), provider: Literal["ollama"] | None = None,
+                  db: Session = Depends(get_db)):
+    return envelope(us.heatmap(db, days=days, provider=provider))
 
 
 @router.get("/usage/quotas", response_model=Envelope[dict[str, Any]])
-def usage_quotas(include_demo: bool = False, db: Session = Depends(get_db)):
-    return envelope({p: us.latest_quotas(db, p, include_demo) for p in ("claude_code", "antigravity")} |
+def usage_quotas(db: Session = Depends(get_db)):
+    return envelope({p: us.latest_quotas(db, p) for p in ("claude_code", "antigravity")} |
                     {"ollama": {"status": "not_applicable", "label": "로컬 / 한도 없음 / 해당 없음"}})
 
 
@@ -294,8 +319,8 @@ def add_quota(body: QuotaIn, db: Session = Depends(get_db)):
 
 @router.get("/sessions", response_model=Envelope[list[dict[str, Any]]])
 def ai_sessions(provider: str | None = None, status: str | None = None, q: str | None = Query(None, max_length=50),
-                limit: int = Query(100, ge=1, le=500), include_demo: bool = False, db: Session = Depends(get_db)):
-    return envelope(us.sessions(db, provider=provider, status=status, q=q, limit=limit, include_demo=include_demo))
+                limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
+    return envelope(us.sessions(db, provider=provider, status=status, q=q, limit=limit))
 
 
 @router.post("/usage/sync", response_model=Envelope[dict[str, Any]])
@@ -308,15 +333,16 @@ def usage_sync():
 
 
 @router.get("/usage/export")
-def usage_export(format: Literal["csv", "json"] = "csv", include_demo: bool = False, db: Session = Depends(get_db)):
-    body, media = us.export(db, format, include_demo)
+def usage_export(format: Literal["csv", "json"] = "csv", provider: Literal["ollama"] | None = None,
+                 db: Session = Depends(get_db)):
+    body, media = us.export(db, format, provider=provider)
     return Response(body.encode("utf-8"), media_type=f"{media}; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="ai-usage.{format}"'})
 
 
 @router.get("/alerts", response_model=Envelope[list[dict[str, Any]]])
-def ai_alerts(include_demo: bool = False, db: Session = Depends(get_db)):
-    return envelope(us.alerts(db, include_demo))
+def ai_alerts(db: Session = Depends(get_db)):
+    return envelope(us.alerts(db))
 
 
 class AlertRuleIn(BaseModel):
@@ -374,17 +400,3 @@ def usage_purge(db: Session = Depends(get_db)):
     r = us.purge_old(db)
     db.commit()
     return envelope(r)
-
-
-@router.post("/usage/demo", response_model=Envelope[dict[str, Any]])
-def usage_demo_load(db: Session = Depends(get_db)):
-    r = us.load_demo(db)
-    db.commit()
-    return envelope(r, warnings=[{"code": "demo_data", "message": "DEMO DATA — 실제 사용량이 아닙니다. 'DEMO 포함'을 켰을 때만 보입니다."}])
-
-
-@router.delete("/usage/demo", response_model=Envelope[dict[str, Any]])
-def usage_demo_clear(db: Session = Depends(get_db)):
-    us.clear_demo(db)
-    db.commit()
-    return envelope({"cleared": True})

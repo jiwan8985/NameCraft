@@ -176,15 +176,129 @@ def dev_web() -> int:
     return run(node_bin("next/dist/bin/next") + WEB_CMD, cwd=WEB)
 
 
+def lan_address() -> str:
+    import ipaddress
+    import socket
+
+    override = os.getenv("NAMECRAFT_LAN_IP")
+    if override:
+        address = ipaddress.IPv4Address(override)
+    else:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            # Select the default IPv4 interface without sending a packet.
+            probe.connect(("192.0.2.1", 9))
+            address = ipaddress.IPv4Address(probe.getsockname()[0])
+    if address.is_loopback or address.is_unspecified or address.is_multicast:
+        raise ValueError("사용할 수 있는 Wi-Fi 주소가 없습니다.")
+    return str(address)
+
+
+def start_desktop_qr(code: str):
+    """Serve the QR to the desktop browser over a separate loopback-only listener."""
+    import html
+    import json
+    import threading
+    import urllib.request
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    port = WEB_PORT + 1
+
+    class DesktopQR(BaseHTTPRequestHandler):
+        def do_GET(self):
+            embedded = self.path == "/mobile?embed=1"
+            if self.path not in {"/mobile", "/mobile?embed=1"} or self.headers.get("Host") != f"127.0.0.1:{port}":
+                self.send_error(404)
+                return
+            if self.headers.get("Sec-Fetch-Site") == "cross-site":
+                self.send_error(403)
+                return
+            request = urllib.request.Request(
+                f"{WEB_URL}/api/mobile", headers={"Cookie": f"namecraft_mobile={code}"},
+            )
+            status = 200
+            try:
+                with urllib.request.urlopen(request, timeout=15) as upstream:
+                    result = json.load(upstream)
+                qr = html.escape(result["qr"], quote=True)
+                content = ('<p>PC와 같은 Wi-Fi에 연결한 휴대폰 카메라로 QR을 찍어 주세요.</p>'
+                           f'<img src="{qr}" width="256" height="256" alt="NameCraft 휴대폰 접속 QR">')
+            except (OSError, ValueError, KeyError):
+                status = 503
+                content = '<p>QR을 불러오지 못했어요. 잠시 뒤 <a href="/mobile">다시 확인</a>해 주세요.</p>'
+            body = f"""<!doctype html><html lang="ko"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>휴대폰에서 열기 · NameCraft</title>
+<style>
+body {{ background: #f8faf7; color: #193629; font: 1rem/1.6 system-ui, sans-serif; }}
+main {{ max-width: 28rem; margin: 10vh auto; padding: 1.75rem; border: 1px solid #dbe6dd; border-radius: 1.25rem; background: white; }}
+img {{ display: block; max-width: 100%; height: auto; margin: 0 0 1rem; }}
+a {{ color: #24634c; }}
+</style>
+<main><h1>휴대폰에서 열기</h1>{content}<a href="{WEB_URL}/dashboard">작명 홈으로</a></main></html>""".encode("utf-8")
+            if embedded:
+                body = f"""<!doctype html><html lang="ko"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>휴대폰 접속 QR</title>
+<style>
+body {{ margin: 0; font: 1rem/1.6 system-ui, sans-serif; }}
+main {{ display: grid; place-items: center; padding: 1rem; }}
+p {{ text-align: center; color: #385648; }}
+img {{ width: 15rem; max-width: 100%; height: auto; border-radius: 1rem; outline: 1px solid #dbe6dd; }}
+</style>
+<main>{content if status != 200 else f'<img src="{qr}" width="256" height="256" alt="NameCraft 휴대폰 접속 QR">'}</main></html>""".encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            if embedded:
+                self.send_header("Content-Security-Policy",
+                                 f"frame-ancestors {WEB_URL} http://localhost:{WEB_PORT}")
+            else:
+                self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, _format, *_args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", port), DesktopQR)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
 def dev() -> int:
     busy = [p for p in (API_PORT, WEB_PORT) if _port_open(p)]
     if busy:
         print(f"포트 {busy} 가 이미 사용 중입니다. 이전 서버가 남아 있으면 `namecraft stop` 을 먼저 실행하세요.")
         return 1
+    browser_url = WEB_URL + "/dashboard"
+    web_args = WEB_CMD
+    web_env = ENV.copy()
+    desktop_qr = None
+    if "--lan" in sys.argv[2:]:
+        import secrets
+
+        try:
+            address = lan_address()
+        except (OSError, ValueError) as error:
+            print(f"Wi-Fi 주소를 확인할 수 없어 이 PC에서만 엽니다. ({error})")
+        else:
+            code = secrets.token_urlsafe(24)
+            web_env.update(NAMECRAFT_LAN_CODE=code, NAMECRAFT_LAN_ORIGIN=f"http://{address}:{WEB_PORT}")
+            web_args = ["dev", "-H", "0.0.0.0", "-p", str(WEB_PORT)]
+            browser_url = f"{WEB_URL}/connect#{code}"
+            print("같은 Wi-Fi의 휴대폰은 홈의 ‘휴대폰에서 열기’ QR로 접속할 수 있어요.")
     migrate()
+    if code := web_env.get("NAMECRAFT_LAN_CODE"):
+        try:
+            desktop_qr = start_desktop_qr(code)
+        except OSError:
+            print("PC에서 QR을 바로 보는 포트가 사용 중이에요. 자동으로 열린 브라우저 탭에서 확인해 주세요.")
     api = subprocess.Popen(API_CMD, cwd=ROOT, env=ENV)
-    web = subprocess.Popen(node_bin("next/dist/bin/next") + WEB_CMD, cwd=WEB, env=ENV)
-    print(f"\n  웹: {WEB_URL}   (종료: Ctrl+C 또는 이 창 닫은 뒤 namecraft stop)\n", flush=True)
+    web = subprocess.Popen(node_bin("next/dist/bin/next") + web_args, cwd=WEB, env=web_env)
+    shown_url = WEB_URL if "--open" in sys.argv[2:] else browser_url
+    print(f"\n  웹: {shown_url}   (종료: Ctrl+C 또는 이 창 닫은 뒤 namecraft stop)\n", flush=True)
     if "--open" in sys.argv[2:]:
         import threading
         import time
@@ -195,7 +309,7 @@ def dev() -> int:
             for _ in range(120):
                 try:
                     urllib.request.urlopen(WEB_URL + "/dashboard", timeout=60)
-                    webbrowser.open(WEB_URL + "/dashboard")
+                    webbrowser.open(browser_url)
                     return
                 except Exception:
                     time.sleep(1)
@@ -207,6 +321,9 @@ def dev() -> int:
     finally:
         kill_tree(web)
         kill_tree(api)
+        if desktop_qr:
+            desktop_qr.shutdown()
+            desktop_qr.server_close()
 
 
 def _port_open(port: int) -> bool:
@@ -448,13 +565,13 @@ TASKS: dict[str, Task] = {
   3) DB 를 만들고 한자 8,525자·성씨·출처 정보를 넣습니다.
 인터넷 연결이 필요하며 몇 분 걸릴 수 있습니다. 다시 실행해도 기존 프로젝트 데이터는 지워지지 않습니다.""",
         examples=("namecraft install",)),
-    "start": Task(dev, "실행", "API + 웹 동시 실행 (--open: 브라우저도 열기)", "[--open]",
+    "start": Task(dev, "실행", "API + 웹 동시 실행 (--open: 브라우저도 열기)", "[--open] [--lan]",
         detail="""앱을 실행합니다. 실행되면 브라우저에서 http://127.0.0.1:3000 을 여세요(또는 다른 창에서 namecraft open).
   · 끄기: 이 창에서 Ctrl+C
   · 창을 그냥 닫았거나 '포트가 이미 사용 중' 이라고 나오면: namecraft stop 후 다시 namecraft start
-  · 이 PC 안에서만 열립니다(127.0.0.1). 다른 기기에서는 접속할 수 없습니다.
+  · 같은 Wi-Fi의 휴대폰에서 쓰려면 --lan 으로 실행한 뒤 홈에서 접속 QR을 여세요.
   · 실행할 때마다 DB 구조를 최신으로 맞춥니다(migrate).""",
-        examples=("namecraft start", "namecraft start --open")),
+        examples=("namecraft start", "namecraft start --open", "namecraft start --open --lan")),
     "stop": Task(stop, "실행", "남아 있는 이 프로젝트 서버(8000·3000) 종료",
         detail="""창을 닫았는데 서버가 계속 남아 있을 때 씁니다.
 포트 8000(API)·3000(웹)을 쓰는 프로그램 중 '이 프로젝트 폴더의 서버'만 골라 하위 프로세스까지 종료합니다.
@@ -520,11 +637,11 @@ namecraft start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: nam
         examples=("namecraft docker-up", "namecraft docker-down")),
     "docker-down": Task(docker_down, "Docker", "Docker 실행 종료",
         detail="namecraft docker-up 으로 띄운 컨테이너를 종료합니다(데이터 볼륨은 남음).", examples=("namecraft docker-down",)),
-    "link": Task(link, "처음", "WSL·macOS: 어느 폴더에서나 namecraft 로 쓰게 등록",
+    "link": Task(link, "연결", "WSL·macOS: 어느 폴더에서나 namecraft 로 쓰게 등록",
         detail="""~/.local/bin/namecraft 링크를 만들어, 프로젝트 폴더로 이동하지 않아도 namecraft 명령이 동작하게 합니다.
 리눅스 기본 명령과 이름이 겹치지 않습니다. 해제하려면 rm ~/.local/bin/namecraft""",
         examples=("./namecraft link", "namecraft status")),
-    "bridge": Task(bridge, "실행", "연결 브리지 실행 (Claude Code·Antigravity 를 다른 곳에서 연결)", "[--lan]",
+    "bridge": Task(bridge, "연결", "연결 브리지 실행 (Claude Code·Antigravity 를 다른 곳에서 연결)", "[--lan]",
         detail="""Claude Code·Antigravity 가 설치된 컴퓨터에서 실행하는 작은 연결 프로그램입니다.
 실행하면 '주소'와 '토큰'이 화면에 나옵니다 → NameCraft 설정 › 해당 AI › 연결 방식 '연결 브리지' 에 입력하세요.
   · WSL 에 설치된 CLI : WSL 에서 namecraft bridge  (Windows 앱에서 주소 http://127.0.0.1:8787)
@@ -533,7 +650,7 @@ namecraft start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: nam
   · 정해진 두 CLI 만 실행하고, 토큰이 없는 요청은 거부합니다. 끄기: Ctrl+C
   · 토큰 새로 만들기: namecraft bridge --new-token""",
         examples=("namecraft bridge", "namecraft bridge --lan", "python3 namecraft_bridge.py --port 9000")),
-    "help": Task(lambda: help_(), "도움말", "이 목록 보기 / namecraft help <명령> 으로 자세히", "[명령]",
+    "help": Task(lambda: help_(), "도움말", "기본 명령 보기 (--all: 전체 목록)", "[명령 | --all]",
         detail="명령 목록을 보여줍니다. 명령 이름을 붙이면 그 명령의 자세한 설명과 예시를 보여줍니다.",
         examples=("namecraft help", "namecraft help start", "namecraft start --help")),
     # 하위 호환 별칭
@@ -544,79 +661,112 @@ namecraft start 로 쓰는 var/ 의 데이터와는 별개입니다. 끄기: nam
     "dev-web": Task(dev_web, "기타", "웹만 실행", detail="웹 서버(3000)만 실행합니다. 개발용.", examples=("namecraft dev-web",)),
 }
 
-GETTING_STARTED = """처음 시작하는 순서
-  Windows : 폴더의 'NameCraft 시작.cmd' 더블클릭 (처음이면 자동으로 설치까지)
-  WSL·macOS:
-    1) ./namecraft install   설치와 데이터 준비 (처음 한 번)
-    2) ./namecraft link      어느 폴더에서나 namecraft 로 쓰게 등록 (처음 한 번)
-    3) namecraft start --open   앱 실행 + 브라우저 열기
-  다 쓰면 그 창에서 Ctrl+C  (창을 닫았으면 namecraft stop)
-궁금할 때: namecraft status (상태) · namecraft help <명령> (자세한 설명)"""
+ESSENTIAL_TASKS = ("start", "status", "stop", "backup-db")
+ESSENTIAL_LABELS = {
+    "start": "아기 이름 짓기 시작",
+    "status": "앱 실행 상태 확인",
+    "stop": "앱 종료",
+    "backup-db": "작명 데이터 백업",
+}
+
+
+RULE = "─" * 52
+INDEX_LABELS = {
+    "처음": "처음 설정",
+    "실행": "앱 실행 및 상태",
+    "데이터": "작명 데이터 및 백업",
+    "검사": "테스트 및 점검",
+    "Docker": "Docker 실행",
+    "연결": "명령 등록 및 AI 연결",
+    "도움말": "도움말",
+    "기타": "개발용 명령",
+}
+
+
+def accent(text: str) -> str:
+    if not sys.stdout.isatty() or "NO_COLOR" in os.environ or os.getenv("TERM") == "dumb":
+        return text
+    if os.name == "nt" and not os.getenv("WT_SESSION"):
+        return text
+    return f"\x1b[1;32m{text}\x1b[0m"
+
+
+def heading(subtitle: str) -> None:
+    print(accent(RULE))
+    print(f"  {accent('NameCraft AI')}   /   {subtitle}")
+    print(accent(RULE))
+
+
+def print_task_index(items: list[tuple[str, Task]]) -> None:
+    width = max(len(name) for name, _ in items)
+    group = None
+    for name, task in items:
+        if task.group != group:
+            group = task.group
+            print(f"\n  {accent(INDEX_LABELS[group])}")
+        usage = f"  ·  {task.usage}" if task.usage else ""
+        print(f"    namecraft {name:<{width}}  {task.desc}{usage}")
 
 
 def help_(name: str | None = None) -> int:
-    name = name if name is not None else (sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == "help" else None)
-    if name:
+    if name and name != "--all":
         t = TASKS.get(name)
         if t is None:
             near = [n for n in TASKS if name in n or n in name]
             print(f"알 수 없는 명령: {name}" + (f" — 혹시: {', '.join(near)}" if near else ""))
-            print("전체 목록: namecraft help")
+            print("전체 목록: namecraft help --all")
             return 2
-        print(f"namecraft {name} {t.usage}".rstrip())
+        heading("명령 도움말")
+        print(f"\n  {accent(f'namecraft {name} {t.usage}'.rstrip())}")
         print(f"  {t.desc}\n")
         if t.detail:
             print(t.detail + "\n")
         if t.examples:
-            print("예시:")
-            for e in t.examples:
-                print(f"  {e}")
+            print(accent("실행 예시"))
+            for example in t.examples:
+                print(f"  {example}")
         return 0
-    print(__doc__)
-    print(GETTING_STARTED)
-    group = None
-    for n, t in TASKS.items():
-        if t.group != group:
-            group = t.group
-            print(f"\n[{group}]")
-        print(f"  namecraft {n:<16}{t.usage:<14}{t.desc}")
-    print("\n명령별 자세한 설명: namecraft help <명령>   예) namecraft help import-official")
+    if name == "--all":
+        heading("전체 명령어")
+        print_task_index(list(TASKS.items()))
+    else:
+        heading("기본 명령어")
+        for command, label in ESSENTIAL_LABELS.items():
+            usage = "start --open --lan" if command == "start" else command
+            print(f"    namecraft {usage:<20}  {label}")
+    print("\n  전체 목록   namecraft help --all")
+    print("  사용법      namecraft help <명령>")
     return 0
 
 
 def menu() -> int:
-    items = [(n, t) for n, t in TASKS.items() if t.group != "기타"]
-    print("NameCraft AI — 실행할 작업 번호를 입력하세요 (엔터: 취소, 번호 뒤에 ? 를 붙이면 설명만: 예 2?)\n")
-    for i, (n, t) in enumerate(items, 1):
-        print(f"  {i:>2}. {t.desc}  [namecraft {n}]")
+    heading("작업 메뉴")
+    for index, command in enumerate(ESSENTIAL_TASKS, 1):
+        print(f"    {index}  {ESSENTIAL_LABELS[command]}")
+    print("\n  Enter로 닫기  ·  1?처럼 입력하면 사용법 보기")
     try:
-        choice = input("\n번호: ").strip()
+        choice = input("\n  작업 번호 > ").strip()
     except (EOFError, KeyboardInterrupt):
         return 0
     if not choice:
         return 0
     explain = choice.endswith("?")
-    choice = choice.rstrip("?").strip()
-    if not choice.isdigit() or not 1 <= int(choice) <= len(items):
+    choice = choice.removesuffix("?").strip().lstrip("0")
+    if not choice.isascii() or not choice.isdecimal() or len(choice) > len(str(len(ESSENTIAL_TASKS))) or not 1 <= int(choice) <= len(ESSENTIAL_TASKS):
         print("올바른 번호가 아닙니다.")
         return 2
-    name, t = items[int(choice) - 1]
-    if explain or name == "help":
-        return help_(None if name == "help" else name)
-    if t.usage.startswith("<"):
-        value = input(f"{t.usage} 입력: ").strip()
-        if not value:
-            return 0
-        sys.argv[2:] = [value]
-    sys.argv[1:2] = [name]
-    return t.fn()
+    name = ESSENTIAL_TASKS[int(choice) - 1]
+    if explain:
+        return help_(name)
+    sys.argv[1:] = [name, "--open", "--lan"] if name == "start" else [name]
+    return TASKS[name].fn()
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] in ("menu",):
         sys.exit(menu())
     if sys.argv[1] in ("help", "-h", "--help", "/?"):
-        sys.exit(help_())
+        sys.exit(help_(sys.argv[2] if sys.argv[1] == "help" and len(sys.argv) > 2 else None))
     if any(a in ("-h", "--help", "/?") for a in sys.argv[2:]) and sys.argv[1] != "test-api":
         sys.exit(help_(sys.argv[1]))
     task = TASKS.get(sys.argv[1])

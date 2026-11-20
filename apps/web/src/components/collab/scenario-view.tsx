@@ -16,8 +16,9 @@ export function ScenarioView({ projectId }: { projectId: string }) {
   const [cur, setCur] = useState<any>(null);
   const [hist, setHist] = useState<any[]>([]);
   const [warn, setWarn] = useState<Warning[]>([]);
+  const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [f, setF] = useState({ kind: "expected", calendar: "solar", date: "", leap: false, mode: "range", time: "", from: "09:00",
+  const [f, setF] = useState({ kind: "expected", calendar: "solar", date: "", leap: false, mode: "unknown", time: "", from: "09:00",
                                to: "12:00", window: 0, extra: "", tst: "off", lon: "", zi: "jojasi_next_day" });
   const set = (k: string, v: unknown) => setF((x) => ({ ...x, [k]: v }));
 
@@ -32,12 +33,14 @@ export function ScenarioView({ projectId }: { projectId: string }) {
 
   async function save() {
     setMsg(null);
+    setSaving(true);
     const body: any = { kind: f.kind, calendar: f.calendar, date: f.date, is_leap_month: f.leap, true_solar_time: f.tst,
                         zi_convention: f.zi, longitude: f.lon ? Number(f.lon) : null };
     if (f.mode === "exact") body.time = f.time;
     if (f.mode === "range") body.time_range = [f.from, f.to];
     if (f.kind === "expected") { body.day_window = Number(f.window); body.extra_dates = splitList(f.extra); }
     const r = await postJson<any>(`projects/${projectId}/birth-profiles`, body);
+    setSaving(false);
     if (!r.ok) return setMsg(r.error.message);
     setMsg(f.kind === "actual" ? "실제 출생정보로 다시 평가했습니다. 이전 기록은 아래 이력에 남아 있습니다." : "저장했습니다.");
     load();
@@ -53,7 +56,8 @@ export function ScenarioView({ projectId }: { projectId: string }) {
     <div className="space-y-4">
       <ProjectNav projectId={projectId} />
       <Card className="space-y-3">
-        <CardTitle>출생 정보</CardTitle>
+        <h1 className="text-xl font-semibold">아기 출생정보</h1>
+        <CardDescription>아직 태어나기 전이라면 예정일을 넣어 살펴보세요. 태어난 뒤 실제 날짜와 시각으로 다시 계산할 수 있어요.</CardDescription>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="구분" htmlFor="kind"><Select id="kind" value={f.kind} onChange={(e) => set("kind", e.target.value)}>
             <option value="expected">출생 예정</option><option value="actual">실제 출생(확정)</option></Select></Field>
@@ -81,7 +85,7 @@ export function ScenarioView({ projectId }: { projectId: string }) {
               <option value="jojasi_next_day">조자시(23시부터 다음 날)</option><option value="yajasi_same_day">야자시</option></Select></Field>
           </div>
         </details>
-        <Button disabled={!f.date} onClick={save}>저장하고 계산</Button>
+        <Button disabled={saving || !f.date || (f.mode === "exact" && !f.time) || (f.mode === "range" && (!f.from || !f.to))} onClick={save}>{saving ? "계산 중…" : "저장하고 계산"}</Button>
         {msg && <Notice role="status">{msg}</Notice>}
       </Card>
 

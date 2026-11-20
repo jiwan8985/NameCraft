@@ -2,15 +2,15 @@
 
 /* 디자인 토큰 — 라이트/다크 자동 전환 (기획서 §30.4). 상태색 의미 고정. */
 :root {
-  --background: oklch(0.985 0.004 270);
-  --foreground: oklch(0.22 0.02 270);
+  --background: oklch(0.975 0.009 95);
+  --foreground: oklch(0.25 0.035 165);
   --card: oklch(1 0 0);
-  --muted: oklch(0.965 0.006 270);
-  --muted-foreground: oklch(0.52 0.02 270);
-  --border: oklch(0.92 0.008 270);
-  --primary: oklch(0.58 0.16 278);
+  --muted: oklch(0.951 0.014 125);
+  --muted-foreground: oklch(0.46 0.03 163);
+  --border: oklch(0.9 0.02 145);
+  --primary: oklch(0.44 0.09 161);
   --primary-foreground: oklch(0.99 0 0);
-  --primary-soft: oklch(0.95 0.035 278);
+  --primary-soft: oklch(0.925 0.035 151);
   --ok: oklch(0.6 0.12 165);
   --ok-soft: oklch(0.95 0.04 165);
   --warn: oklch(0.65 0.13 65);
@@ -24,15 +24,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: oklch(0.17 0.012 270);
-    --foreground: oklch(0.95 0.006 270);
-    --card: oklch(0.215 0.014 270);
-    --muted: oklch(0.26 0.014 270);
-    --muted-foreground: oklch(0.72 0.015 270);
-    --border: oklch(0.3 0.014 270);
-    --primary: oklch(0.74 0.12 278);
-    --primary-foreground: oklch(0.17 0.012 270);
-    --primary-soft: oklch(0.3 0.05 278);
+    --background: oklch(0.18 0.021 162);
+    --foreground: oklch(0.95 0.012 145);
+    --card: oklch(0.23 0.025 160);
+    --muted: oklch(0.27 0.027 162);
+    --muted-foreground: oklch(0.75 0.025 152);
+    --border: oklch(0.34 0.027 162);
+    --primary: oklch(0.78 0.09 154);
+    --primary-foreground: oklch(0.18 0.021 162);
+    --primary-soft: oklch(0.31 0.048 160);
     --ok: oklch(0.76 0.12 165);
     --ok-soft: oklch(0.3 0.05 165);
     --warn: oklch(0.8 0.12 75);
@@ -83,4 +83,80 @@ body {
   header[data-app-header], nav[aria-label="주요 메뉴"] { display: none !important; }
   body { background: #fff !important; color: #000 !important; }
   main { padding: 0 !important; }
+}
+
+/* A muted botanical palette and paper-inspired surfaces for the naming workspace. */
+.naming-hero {
+  background:
+    radial-gradient(ellipse at 85% 35%, var(--primary-soft), transparent 64%),
+    linear-gradient(125deg, var(--card) 15%, var(--muted));
+}
+
+.naming-title,
+.naming-hero-sheet {
+  font-family: "Noto Serif KR", "Batang", "AppleMyungjo", Georgia, serif;
+  word-break: keep-all;
+}
+
+.naming-hero-sheet {
+  position: absolute;
+  width: 52%;
+  aspect-ratio: 4 / 5;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: 0 1.25rem 3rem color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.naming-hero-sheet-back {
+  background: var(--primary-soft);
+  transform: translate(18%, -7%) rotate(13deg);
+}
+
+.naming-hero-sheet-front {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--card);
+  color: var(--primary);
+  font-size: 3.5rem;
+  letter-spacing: 0.1em;
+  transform: translate(-12%, 5%) rotate(-9deg);
+}
+
+
+.mobile-qr-popover {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(24rem, calc(100% - 2rem));
+  height: fit-content;
+}
+
+.mobile-qr-popover::backdrop {
+  background: rgb(16 31 24 / 44%);
+  backdrop-filter: blur(3px);
+}
+
+.usage-plot {
+  background: radial-gradient(ellipse at 100% 0%, #345746 0%, transparent 58%), #142c24;
+  color: #effaf4;
+}
+
+.usage-stat {
+  background: linear-gradient(145deg, color-mix(in oklch, var(--primary-soft) 27%, var(--card)), var(--card) 78%);
+  border-color: color-mix(in oklch, var(--primary) 15%, var(--border));
+}
+
+.usage-model-bar {
+  background: linear-gradient(90deg, #3d8f72, #72b78b);
+}
+
+.usage-surface li:nth-child(2n) .usage-model-bar {
+  background: linear-gradient(90deg, #6a7eb4, #9fafe0);
+}
+
+.usage-surface li:nth-child(3n) .usage-model-bar {
+  background: linear-gradient(90deg, #9e7034, #d5a763);
 }

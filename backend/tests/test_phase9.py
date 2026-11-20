@@ -113,6 +113,29 @@ def test_ranking_saju_only_when_enabled_and_profile_exists(lexicon_client):
     assert s_off["score"] is None and "미사용" in s_off["basis"]
 
 
+def test_project_birth_input_ranks_given_hanja_without_surname_hanja(lexicon_client):
+    response = lexicon_client.post("/api/v1/projects", json={
+        "surname_hangul": "심",
+        "birth": {"kind": "expected", "calendar": "solar", "date": "2027-01-15"},
+    })
+    assert response.status_code == 201
+    project = response.json()["data"]
+    assert project["preferences"]["use_saju"] is True
+    path = f"/api/v1/projects/{project['id']}"
+    profile = lexicon_client.get(f"{path}/scenario").json()["data"]["profile"]
+    assert profile["time"] is None
+    assert profile["kind"] == "expected"
+    assert lexicon_client.post(f"{path}/candidates", json={
+        "given_hangul": "수림", "given_hanja": "秀林",
+    }).status_code < 300
+    item = lexicon_client.get(f"{path}/candidates?sort=saju").json()["data"]["items"][0]
+    assert item["categories"]["saju"]["score"] is not None
+    assert item["categories"]["numerology"]["score"] is None
+    prompt = lexicon_client.get(f"{path}/candidates/handoff").json()["data"]["prompt"]
+    assert "공통 보완 오행" in prompt and "어색한 연음" in prompt
+    assert "2027-01-15" not in prompt and "surname_hangul" not in prompt
+
+
 # ---------------------------------------------------------------- 가족
 
 def _cands(c, pid, names):

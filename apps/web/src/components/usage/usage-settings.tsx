@@ -12,7 +12,7 @@ export function UsageSettings() {
   const [s, setS] = useState<any>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const load = () => {
-    apiFetch<any[]>("ai/alert-rules").then((r) => r.ok && setRules(r.data));
+    apiFetch<any[]>("ai/alert-rules").then((r) => r.ok && setRules(r.data.filter((rule) => rule.provider_id === "ollama")));
     apiFetch<any>("ai/usage/settings").then((r) => r.ok && setS(r.data));
   };
   useEffect(load, []);
@@ -39,7 +39,7 @@ export function UsageSettings() {
       </Card>
       <Card className="space-y-3">
         <CardTitle>알림 임계치</CardTitle>
-        <CardDescription>공식·수동 입력 사용률이 있을 때만 한도 알림을 보냅니다. 없으면 로컬 요청 증가 알림만 보냅니다.</CardDescription>
+        <CardDescription>로컬 Ollama 요청이 늘어날 때 사용량을 확인할 수 있어요.</CardDescription>
         {rules.map((r) => <RuleRow key={r.provider_id} r={r} onSave={saveRule} />)}
       </Card>
       {s && (

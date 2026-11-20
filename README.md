@@ -24,20 +24,25 @@
 | Windows 명령 프롬프트·PowerShell | 이 폴더에서 `namecraft <명령>` (PowerShell 은 `.\\namecraft <명령>`) |
 
 요구: Python 3.12+, Node.js 24. 명령 이름은 리눅스 기본 명령(`nc`=netcat)과 겹치지 않도록 `namecraft` 입니다.
-명령 없이 `namecraft` 만 입력하면 **번호로 고르는 메뉴**가 나옵니다(번호 뒤에 `?` 를 붙이면 설명만, 예: `2?`).
+명령 없이 `namecraft`를 입력하면 네 가지 작업을 번호로 고를 수 있습니다.
 
-| 도움말 | 보여주는 것 |
-|---|---|
-| `namecraft help` (또는 `namecraft /?`) | 처음 시작하는 순서 + 전체 명령 목록 |
-| `namecraft help <명령>` · `namecraft <명령> --help` | 그 명령이 하는 일, 언제 쓰는지, 예시, 주의 사항 |
-| 명령을 잘못 입력하면 | 비슷한 명령 제안 (예: `namecraft stat` → `status`) |
+| 번호 | 작업 | 직접 실행 |
+|---|---|---|
+| 1 | 앱과 브라우저 열기 · 휴대폰 접속 켜기 | `namecraft start --open --lan` |
+| 2 | 실행 상태 확인 | `namecraft status` |
+| 3 | 앱 종료 | `namecraft stop` |
+| 4 | 작명 데이터 백업 | `namecraft backup-db` |
 
-| 분류 | 명령 |
-|---|---|
-| 실행 | `start` · `stop` · `open`(브라우저) · `status` |
-| 데이터 | `backup-db` · `migrate` · `fetch-unihan` · `import-data` · `import-official <CSV>` |
-| 검사 | `test` · `test-api [pytest 옵션]` · `test-web` · `test-security` · `build-web` · `perf` · `audit` |
-| Docker | `docker-up` · `docker-down` |
+메뉴에서 `1?`을 입력하면 실행 방법을 볼 수 있고, Enter만 누르면 닫힙니다.
+`namecraft help`는 기본 목록, `namecraft help --all`은 설치·데이터·개발 명령을 포함한 전체 목록을 보여줍니다.
+개별 명령의 사용법은 `namecraft help <명령>`으로 확인하세요.
+
+### 휴대폰에서 열기
+
+Windows에서는 `NameCraft 시작.cmd`로 실행하세요. 터미널에서 시작할 때는 `namecraft start --open --lan`을 사용합니다. PC의 홈에서 **휴대폰에서 열기**를 누르고, 같은 Wi-Fi에 있는 휴대폰 카메라로 QR을 찍으세요. QR은 현재 앱 실행에 연결되므로 앱을 다시 시작하면 새 QR을 사용합니다.
+
+접속이 안 되면 PC와 휴대폰이 동일한 Wi-Fi에 있는지 확인하고, Windows 방화벽에서 Node.js 연결을 허용할 때는 개인 네트워크를 선택하세요. 여러 네트워크에 연결된 PC는 `NAMECRAFT_LAN_IP`로 사용할 IPv4 주소를 지정할 수 있습니다.
+
 
 - 데이터 위치: `var/namecraft.db`(DB), `var/uploads/`(업로드), `var/local_token`(로컬 토큰) — Git 에 포함되지 않습니다.
 - 대법원 인명용 한자표는 검토 후 정규화 CSV(`hanja,reading,effective_date,legal_basis`)로 만들어 `namecraft import-official <파일>` 로 넣습니다. 적재 전까지 법적 허용 여부는 **판정 불가**로 표시됩니다.

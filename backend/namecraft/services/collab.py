@@ -60,21 +60,14 @@ def add_birth_profile(session: Session, project_id: str, data: dict) -> tuple[Bi
     return b, snap
 
 
-def _jawon_for(session: Session, p, cands: list[NameCandidate]) -> list[dict]:
-    from namecraft.domain.numerology.core import NumerologyOptions
-    from namecraft.services.numerology import analyze_name
+def _jawon_for(session: Session, cands: list[NameCandidate]) -> list[dict]:
+    from namecraft.services.numerology import given_name_elements
 
-    out = []
-    for c in cands:
-        if not c.given_hanja:
-            out.append({"label": c.given_hangul, "candidate_id": c.id, "jawon": []})
-            continue
-        r = analyze_name(session, surname_hangul=p.surname_hangul, surname_hanja=p.surname_hanja,
-                         given_hangul=c.given_hangul, given_hanja=c.given_hanja, opts=NumerologyOptions())
-        jw = r.get("trad", {}).get("jawon", {}).get("elements", [])
-        out.append({"label": c.given_hangul + (f"({c.given_hanja})" if c.given_hanja else ""), "candidate_id": c.id,
-                    "jawon": jw[len(p.surname_hangul):]})  # 이름 글자만
-    return out
+    return [
+        {"label": f"{c.given_hangul}({c.given_hanja})" if c.given_hanja else c.given_hangul,
+         "candidate_id": c.id, "jawon": given_name_elements(session, c.given_hanja)}
+        for c in cands
+    ]
 
 
 def _evaluate_profile(session: Session, project_id: str, b: BirthProfile) -> dict:
@@ -83,7 +76,7 @@ def _evaluate_profile(session: Session, project_id: str, b: BirthProfile) -> dic
     names = None
     if p.preferences.get("use_saju"):
         cands = [c for c in ps.candidates(session, project_id) if c.status in ("active", "favorite")][:30]
-        names = _jawon_for(session, p, cands)
+        names = _jawon_for(session, cands)
     return sc.evaluate(calendar=b.calendar, base_date=date.fromisoformat(b.date), is_leap_month=b.is_leap_month,
                        time_=time.fromisoformat(b.time) if b.time else None, time_range=tr, tz=b.tz,
                        longitude=b.longitude, true_solar_time=b.true_solar_time, zi_convention=b.zi_convention,

@@ -1,6 +1,6 @@
 /* NameCraft AI service worker — 앱 화면(정적 자원)과 오프라인 안내만 캐시한다.
  * 개인정보가 담긴 /api/ 응답은 절대 캐시하지 않는다. */
-const CACHE = "namecraft-shell-v1";
+const CACHE = "namecraft-shell-v2";
 const SHELL = ["/offline", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

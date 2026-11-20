@@ -13,6 +13,7 @@ export type ProviderStatus = {
   execution_mode: string;
   message: string;
   models: string[];
+  selected_model?: string | null;
   last_checked_at: string | null;
   source_kind: string;
   is_mock: boolean;
@@ -61,6 +62,12 @@ export function ProviderCards({ providers }: { providers: ProviderStatus[] }) {
             <dd>{STATE_LABEL[p.state] ?? p.state}</dd>
             <dt className="text-muted-foreground">실행 모드</dt>
             <dd className="font-mono text-xs leading-5">{p.execution_mode}</dd>
+            {p.selected_model && (
+              <>
+                <dt className="text-muted-foreground">작명 모델</dt>
+                <dd className="break-all">{p.selected_model}</dd>
+              </>
+            )}
             <dt className="text-muted-foreground">마지막 확인</dt>
             <dd>{p.last_checked_at ?? "확인 불가"}</dd>
           </dl>

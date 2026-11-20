@@ -1,36 +1,48 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
+import { apiFetch, postJson } from "@/lib/api";
 import { NewProjectWizard } from "@/components/naming/new-project-wizard";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/lib/api", () => ({
-  apiFetch: vi.fn(async () => ({ ok: true, warnings: [], data: [
-    { provider_id: "claude_code", enabled: false, state: "disabled", execution_mode: "manual_handoff" },
-    { provider_id: "antigravity", enabled: false, state: "not_installed", execution_mode: "manual_handoff" },
-    { provider_id: "ollama", enabled: false, state: "disabled", execution_mode: "unavailable" },
-  ] })),
-  postJson: vi.fn(async () => ({ ok: true, warnings: [], data: {} })),
+  apiFetch: vi.fn(async () => ({ ok: true, data: [] })),
+  postJson: vi.fn(async () => ({ ok: true, warnings: [], data: { id: "p1" } })),
 }));
 
 describe("NewProjectWizard", () => {
-  it("needs a Hangul surname and baby sex, then lets you pick who names with", async () => {
+  it("starts from one form and accepts a due date without a birth time", async () => {
     render(<NewProjectWizard />);
-    const next = screen.getByRole("button", { name: "다음" });
-    expect(next).toBeDisabled();
+    const generate = screen.getByRole("button", { name: "이름 받기" });
+    expect(generate).toBeDisabled();
     fireEvent.change(screen.getByLabelText("성"), { target: { value: "Sim" } });
-    fireEvent.click(screen.getByRole("button", { name: "여자 아기" }));
-    expect(next).toBeDisabled();
+    expect(generate).toBeDisabled();
     fireEvent.change(screen.getByLabelText("성"), { target: { value: "심" } });
-    expect(next).toBeEnabled();
-    fireEvent.click(next);
-    expect(screen.getByText("누구와 함께 지을까요?")).toBeInTheDocument();
-    // 이 PC 에서 찾은 Claude 가 기본 선택, Ollama 는 쓸 수 없으니 보이지 않음
-    await waitFor(() => expect(screen.getByRole("radio", { name: /Claude/ })).toHaveAttribute("aria-checked", "true"));
-    expect(screen.queryByRole("radio", { name: /Ollama/ })).toBeNull();
-    expect(screen.getByRole("radio", { name: /Antigravity.*찾지 못했어요/ })).toBeInTheDocument();
-    expect(screen.getByText(/성씨 · 생일 · 가족 정보는 보내지 않아요/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Claude에게 이름 받기/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: /이름 사전/ }));
-    expect(screen.getByRole("button", { name: /^이름 받기/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "아직 몰라요" })).toBeChecked();
+    fireEvent.click(screen.getByText("사주 반영하기 · 선택"));
+    fireEvent.change(screen.getByLabelText("출산 예정일"), { target: { value: "2027-01-15" } });
+    fireEvent.click(screen.getByText("추천 방식 · 이름 사전"));
+    expect(screen.queryByRole("radio", { name: /Claude|Antigravity/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(generate).toBeEnabled());
+    fireEvent.click(generate);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p1/recommendations?sort=saju"));
+    expect(postJson).toHaveBeenCalledWith("projects", expect.objectContaining({
+      sex: "n", birth: { kind: "expected", calendar: "solar", date: "2027-01-15", time: null, is_leap_month: false },
+    }));
+  });
+
+  it("offers a direct AI request when a local model is available", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      ok: true, data: { models: [{ can_generate: true }] }, warnings: [], verification_status: null,
+    });
+    render(<NewProjectWizard />);
+    fireEvent.change(screen.getByLabelText("성"), { target: { value: "김" } });
+    fireEvent.click(screen.getByRole("radio", { name: "남자 아기" }));
+    const generate = await screen.findByRole("button", { name: "AI로 이름 받기" });
+    expect(screen.getByText("추천 방식 · Ollama")).toBeInTheDocument();
+    fireEvent.click(generate);
+    await waitFor(() => expect(postJson).toHaveBeenCalledWith("projects/p1/candidates/generate", {
+      provider: "ollama", local_only: true, count: 5,
+    }));
   });
 });

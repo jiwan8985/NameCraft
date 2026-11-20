@@ -5,12 +5,12 @@ import { TopNav } from "@/components/top-nav";
 
 export const metadata: Metadata = {
   title: "NameCraft AI",
-  description: "검증 가능한 개인용 AI 작명 플랫폼",
+  description: "곧 태어날 아기 이름을 찾고 가족과 함께 고르는 개인용 작명 도구",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg" },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#6d6ee0" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#24634c" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -86,11 +86,11 @@ def latest_quotas(session: Session, provider_id: str, include_demo: bool = False
     return out
 
 
-def summary(session: Session, statuses: dict[str, dict], include_demo: bool = False) -> dict:
+def summary(session: Session, statuses: dict[str, dict], include_demo: bool = False, *, provider: str | None = None) -> dict:
     now = datetime.now(UTC)
     rows = list(session.scalars(_inv_q(include_demo).where(AIInvocation.observed_at >= now - timedelta(days=30))))
     cards = []
-    for pid in PROVIDERS:
+    for pid in ([provider] if provider else PROVIDERS):
         mine = [r for r in rows if r.provider_id == pid]
         by_window = {}
         for label, days in (("today", 1), ("7d", 7), ("30d", 30)):
@@ -145,10 +145,13 @@ def timeseries(session: Session, *, metric: str, days: int, tz: str = "Asia/Seou
             "note": "Provider 별 별도 계열 — 합계 없음. 값이 없는 날은 null(0 아님, 요청 수 제외)."}
 
 
-def heatmap(session: Session, *, days: int = 30, tz: str = "Asia/Seoul", include_demo: bool = False) -> dict:
+def heatmap(session: Session, *, days: int = 30, tz: str = "Asia/Seoul", include_demo: bool = False,
+            provider: str | None = None) -> dict:
     zone = ZoneInfo(tz)
-    rows = list(session.scalars(_inv_q(include_demo).where(
-        AIInvocation.observed_at >= datetime.now(UTC) - timedelta(days=days))))
+    query = _inv_q(include_demo).where(AIInvocation.observed_at >= datetime.now(UTC) - timedelta(days=days))
+    if provider:
+        query = query.where(AIInvocation.provider_id == provider)
+    rows = list(session.scalars(query))
     grid = [[0] * 24 for _ in range(7)]
     for r in rows:
         t = _aware(r.observed_at).astimezone(zone)
@@ -280,9 +283,10 @@ def clear_demo(session: Session) -> None:
     session.flush()
 
 
-def export(session: Session, fmt: str, include_demo: bool = False) -> tuple[str, str]:
-    inv = sessions(session, provider=None, status=None, q=None, limit=500, include_demo=include_demo)
-    quotas = [q for p in PROVIDERS if p != "ollama" for q in latest_quotas(session, p, include_demo)]
+def export(session: Session, fmt: str, include_demo: bool = False, *, provider: str | None = None) -> tuple[str, str]:
+    inv = sessions(session, provider=provider, status=None, q=None, limit=500, include_demo=include_demo)
+    quotas = [q for p in ([provider] if provider else PROVIDERS) if p != "ollama"
+              for q in latest_quotas(session, p, include_demo)]
     if fmt == "json":
         return json.dumps({"invocations": inv, "quota_snapshots": quotas, "exported_at": datetime.now(UTC).isoformat(),
                            "note": "NameCraft 내부 실행 기록과 수동 입력 한도만 포함 — 프롬프트·인증 정보 없음"},

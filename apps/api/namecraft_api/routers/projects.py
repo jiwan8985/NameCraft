@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+import re
+from dataclasses import replace
 from typing import Any, Literal
+
+from jsonschema import ValidationError
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from namecraft.db.models import NameCandidate, NamingProject
+from namecraft.db.models import AIGenerationRecord, NameCandidate, NamingProject
 from namecraft.errors import AppError, NotFound
 from namecraft.provenance import Envelope, VerificationStatus, envelope
 from namecraft.services import ai_generation as aig
+from namecraft.services import collab as cb
 from namecraft.services import projects as ps
 from namecraft.services.ranking import RankingError, rank_names, sort_items
 from namecraft_api.deps import get_db
+from namecraft_api.routers.collab import BirthIn, birth_data
 
 router = APIRouter(tags=["projects"])
 
@@ -27,6 +33,7 @@ class ProjectIn(BaseModel):
     sex: Literal["m", "f", "n"] = "n"
     preferences: dict[str, Any] = Field(default_factory=dict)
     constraints: dict[str, Any] = Field(default_factory=dict)
+    birth: BirthIn | None = None
     analysis_options: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -41,9 +48,14 @@ class ProjectPatch(BaseModel):
 @router.post("/projects", response_model=Envelope[dict[str, Any]], status_code=201)
 def create_project(body: ProjectIn, db: Session = Depends(get_db)):
     try:
-        p = ps.create_project(db, body.model_dump())
+        data = body.model_dump(exclude={"birth"})
+        if body.birth is not None:
+            data["preferences"]["use_saju"] = True
+        p = ps.create_project(db, data)
     except ValueError as e:
         raise AppError("성씨 표기가 올바르지 않습니다.", details={"field": str(e)}) from None
+    if body.birth is not None:
+        cb.add_birth_profile(db, p.id, birth_data(body.birth))
     db.commit()
     return envelope(ps.project_dict(p))
 
@@ -71,6 +83,7 @@ class CandidateGenerateIn(BaseModel):
     count: int | None = Field(default=None, ge=1, le=60)
     send_fields: list[str] | None = None
     consent: bool = False
+    local_only: bool = False
     seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
 
 
@@ -78,10 +91,14 @@ class CandidateGenerateIn(BaseModel):
 def generate_candidates(project_id: str, body: CandidateGenerateIn, request: Request, db: Session = Depends(get_db)):
     p = ps.get_project(db, project_id)
     req = ps.generate_request_for(db, p, {"count": body.count} if body.count else None)
+    local_only = body.provider == "ollama" and body.local_only
     try:
         res = aig.run_ai_generation(db, req, provider=body.provider, send_fields=body.send_fields,
                                     consent=body.consent, seed=body.seed, project_id=p.id,
-                                    ollama_url=request.app.state.settings.ollama_url)
+                                    ollama_url=request.app.state.settings.ollama_url,
+                                    local_only=local_only, project_context=aig.project_prompt_context(
+                                        req, _scenarios(db, p.id) if p.preferences.get("use_saju") else None,
+                                    ) if local_only else None)
     except aig.AIConsentRequired as e:
         raise AppError("외부 AI 로 보내기 전에 전송 내용 확인과 동의가 필요합니다.",
                        details={"consent_required": True, "preview": e.preview}) from None
@@ -97,6 +114,63 @@ def generate_candidates(project_id: str, body: CandidateGenerateIn, request: Req
                      "fallback_reason": res.fallback_reason, "attempts": res.attempts,
                      "saved": [_cand(c) for c in saved], "validation": res.validation},
                     warnings=warnings, verification_status=VerificationStatus.calculated)
+
+
+@router.get("/projects/{project_id}/candidates/handoff", response_model=Envelope[dict[str, Any]])
+def project_handoff_prompt(project_id: str, db: Session = Depends(get_db)):
+    project = ps.get_project(db, project_id)
+    req = ps.generate_request_for(db, project)
+    payload = aig.build_payload(req, [*aig.DEFAULT_SEND, "include_syllables", "exclude_syllables"])
+    payload.update(aig.project_prompt_context(
+        req, _scenarios(db, project_id) if project.preferences.get("use_saju") else None,
+    ))
+    return envelope({"prompt": aig.project_handoff_text(payload)})
+
+class ProjectHandoffIn(BaseModel):
+    provider: Literal["claude_code", "antigravity"]
+    pasted: str = Field(min_length=1, max_length=50_000)
+
+
+def _parse_handoff_names(text: str) -> dict:
+    try:
+        return aig.parse_ai_json(text)
+    except (ValueError, ValidationError):
+        items = []
+        for line in text.splitlines():
+            entries = [line] if "|" in line else re.split(r"[,、]", line)
+            for entry in entries:
+                entry = re.sub(r"^\s*(?:[-*•]\s+|\d+[.)]\s*)", "", entry).strip()
+                given, _, details = entry.partition("|")
+                given = given.strip(" *`")
+                if not re.fullmatch(r"[가-힣]{1,7}", given):
+                    continue
+                hanja, _, reason = details.partition("|")
+                items.append({"given_hangul": given, "given_hanja": hanja.strip() or None, "reason": reason.strip()})
+                if len(items) == 60:
+                    return {"candidates": items}
+        if items:
+            return {"candidates": items}
+    raise AppError("이름이 포함된 답변을 붙여넣어 주세요. 이름만 한 줄씩 입력해도 돼요.")
+
+
+@router.post("/projects/{project_id}/candidates/handoff", response_model=Envelope[dict[str, Any]])
+def import_project_handoff(project_id: str, body: ProjectHandoffIn, db: Session = Depends(get_db)):
+    project = ps.get_project(db, project_id)
+    doc = _parse_handoff_names(body.pasted)
+    req = replace(ps.generate_request_for(db, project), exclude_names=ps.excluded_names(db, project_id))
+    result = aig.validate_candidates(db, doc, req)
+    if not result["accepted"]:
+        raise AppError("프로젝트 조건에 맞는 이름이 없어요. 조건을 반영해 AI에 다시 요청해 주세요.")
+    validation = {"accepted": len(result["accepted"]), "rejected": result["rejected"][:50]}
+    record = AIGenerationRecord(project_id=project_id, task="generate_candidates", provider_id=body.provider,
+                                execution_mode="manual_handoff", prompt_version=aig.PROMPT_VERSION,
+                                status="partial" if validation["rejected"] else "ok", validation=validation)
+    db.add(record)
+    db.flush()
+    saved = ps.save_candidates(db, project_id, result["accepted"], source="ai_based",
+                               provider_id=body.provider, record_id=record.id)
+    db.commit()
+    return envelope({"saved": len(saved)}, verification_status=VerificationStatus.subjective)
 
 
 def _scenarios(db: Session, project_id: str) -> list[dict] | None:

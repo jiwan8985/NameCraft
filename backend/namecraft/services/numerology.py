@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from namecraft.db.models import HanjaCharacter
-from namecraft.domain.numerology.core import CharInput, NumerologyOptions, analyze
+from namecraft.domain.numerology.core import JAWON_BY_RADICAL, CharInput, NumerologyOptions, analyze
 from namecraft.domain.numerology.strokes import NUMERALS, original_strokes
 from namecraft.domain.text import codepoint, is_hangul_syllable, is_hanja, normalize_name_text
 from namecraft.services.lexicon import stroke_map
@@ -15,6 +15,21 @@ from namecraft.services.lexicon import stroke_map
 
 class NameInputError(ValueError):
     pass
+
+
+def _radical(row: HanjaCharacter | None) -> int | None:
+    if row is None or not row.radical_stroke:
+        return None
+    value = row.radical_stroke.split()[0].split(".")[0]
+    return int(value) if value.isdigit() else None
+
+
+def given_name_elements(session: Session, hanja: str | None) -> list[str | None]:
+    """이름 한자의 부수 오행. 성씨 한자나 획수와 독립적으로 계산한다."""
+    return [
+        JAWON_BY_RADICAL.get(_radical(session.get(HanjaCharacter, codepoint(char))) or 0)
+        for char in normalize_name_text(hanja or "")
+    ]
 
 
 def _chars(session: Session, hangul: str, hanja: str | None, opts: NumerologyOptions) -> list[CharInput]:
@@ -44,10 +59,7 @@ def _chars(session: Session, hangul: str, hanja: str | None, opts: NumerologyOpt
                 notes.append(o.note)
         if row is None:
             notes.append("한자 데이터 없음")
-        radical = None
-        if row is not None and row.radical_stroke:
-            r = row.radical_stroke.split()[0].split(".")[0]
-            radical = int(r) if r.isdigit() else None
+        radical = _radical(row)
         out.append(CharInput(hangul=h, hanja=ch, codepoint=cp, modern_strokes=st.get("modern"),
                              original_strokes=orig, radical=radical, stroke_status="unverified", notes=notes))
     return out

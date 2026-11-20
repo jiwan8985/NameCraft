@@ -22,6 +22,23 @@ const cand = (id: string, n: string) => ({ id, given_hangul: n, given_hanja: nul
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ScenarioView", () => {
+  it("saves a due date without assuming a birth time", async () => {
+    const calls = stubApi({
+      "/scenario": null,
+      "/birth-profiles": [],
+      "projects/p1": { id: "p1", preferences: {} },
+    });
+    render(<ScenarioView projectId="p1" />);
+    expect(screen.getByLabelText("시각")).toHaveValue("unknown");
+    fireEvent.change(screen.getByLabelText("날짜"), { target: { value: "2027-01-15" } });
+    fireEvent.click(screen.getByRole("button", { name: "저장하고 계산" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("저장했습니다."));
+    const body = calls.find((call) => call.url.endsWith("/birth-profiles") && call.body)?.body;
+    expect(body).toMatchObject({ kind: "expected", date: "2027-01-15" });
+    expect(body).not.toHaveProperty("time");
+    expect(body).not.toHaveProperty("time_range");
+  });
+
   it("shows scenarios without averaging and the single-school disclaimer", async () => {
     stubApi({
       "/scenario": { profile: { kind: "expected" }, scenario: {

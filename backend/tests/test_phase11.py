@@ -175,21 +175,18 @@ def test_manual_quota_alerts_and_staleness(lexicon_client):
     assert c.post("/api/v1/ai/usage/quotas", json={"provider_id": "claude_code", "window_type": "weekly"}).status_code == 400
 
 
-def test_demo_data_is_separated(lexicon_client):
+def test_demo_data_is_excluded_from_usage_apis(lexicon_client, lexicon_session):
+    from namecraft.services.usage import load_demo
+
+    assert load_demo(lexicon_session)["sessions"] > 0
+    lexicon_session.commit()
     c = lexicon_client
-    load = c.post("/api/v1/ai/usage/demo").json()
-    assert load["data"]["sessions"] > 0 and load["warnings"][0]["code"] == "demo_data"
-    real = c.get("/api/v1/ai/usage/summary").json()["data"]
-    assert all(x["namecraft_usage"]["30d"]["requests"] == 0 for x in real["providers"])
-    demo = c.get("/api/v1/ai/usage/summary?include_demo=true").json()["data"]
-    assert sum(x["namecraft_usage"]["30d"]["requests"] for x in demo["providers"]) > 0
-    assert c.get("/api/v1/ai/sessions").json()["data"] == []
-    sess = c.get("/api/v1/ai/sessions?include_demo=true").json()["data"]
-    assert sess and all(s["is_demo"] for s in sess)
-    q = c.get("/api/v1/ai/usage/quotas?include_demo=true").json()["data"]["claude_code"]
-    assert q and q[0]["is_demo"] and q[0]["source_kind"] == "demo"
-    c.delete("/api/v1/ai/usage/demo")
+    assert c.post("/api/v1/ai/usage/demo").status_code == 404
+    summary = c.get("/api/v1/ai/usage/summary?include_demo=true").json()["data"]
+    assert all(row["namecraft_usage"]["30d"]["requests"] == 0 for row in summary["providers"])
     assert c.get("/api/v1/ai/sessions?include_demo=true").json()["data"] == []
+    assert c.get("/api/v1/ai/usage/quotas?include_demo=true").json()["data"]["claude_code"] == []
+    assert c.get("/api/v1/ai/usage/heatmap?include_demo=true").json()["data"]["model_distribution"] == []
 
 
 def test_timeseries_heatmap_export_sync(lexicon_client, lexicon_session):
@@ -208,6 +205,15 @@ def test_timeseries_heatmap_export_sync(lexicon_client, lexicon_session):
     assert csv_.startswith("﻿observed_at,provider_id") and "prompt" not in csv_
     js = lexicon_client.get("/api/v1/ai/usage/export?format=json").json()
     assert js["invocations"][0]["task"] == "explain_name" and "프롬프트" in js["note"]
+    lexicon_session.add(AIInvocation(provider_id="claude_code", execution_mode="manual_handoff",
+                                     model_id="historic", task="explain_name", status="success"))
+    lexicon_session.commit()
+    local = lexicon_client.get("/api/v1/ai/usage/heatmap?provider=ollama").json()["data"]
+    assert sum(map(sum, local["weekday_hour"])) == 1
+    assert [m["provider_id"] for m in local["model_distribution"]] == ["ollama"]
+    exported = lexicon_client.get("/api/v1/ai/usage/export?format=json&provider=ollama").json()
+    assert [r["provider_id"] for r in exported["invocations"]] == ["ollama"]
+    assert exported["quota_snapshots"] == []
     sync = lexicon_client.post("/api/v1/ai/usage/sync").json()["data"]
     assert sync["claude_code"]["result"] == "not_supported" and sync["ollama"]["result"] == "nothing_to_sync"
 

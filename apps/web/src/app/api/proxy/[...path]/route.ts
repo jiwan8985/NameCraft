@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
+import { canAccessLocalApi } from "@/lib/mobile-access";
 import { checkProxyRequest, isSlowAICall } from "@/lib/proxy-guard";
 
 /** 브라우저 → Next 서버 → FastAPI. 로컬 토큰은 서버에서만 읽고 브라우저로 내보내지 않는다. */
@@ -23,6 +24,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   const { path: segments } = await ctx.params;
   const guard = checkProxyRequest(req.method, req.headers, segments);
   if (!guard.ok) return NextResponse.json(errorBody(guard.code, "요청이 거부되었습니다."), { status: guard.status });
+
+  if (!canAccessLocalApi(req)) {
+    return NextResponse.json(errorBody("pairing_required", "PC 화면에서 현재 접속 QR을 찍어 연결해 주세요."), { status: 401 });
+  }
 
   const token = await readToken();
   if (!token) {

@@ -1,113 +1,109 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Activity, Bell, Clock3, Cpu, Layers, RefreshCw } from "lucide-react";
+import { LineChart, type ChartPoint } from "@/components/usage/charts";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { Field, Input, Notice, Select } from "@/components/ui/form";
-import { apiFetch, postJson } from "@/lib/api";
+import { Notice } from "@/components/ui/form";
+import { apiFetch } from "@/lib/api";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const W: Record<string, string> = { rolling_5h: "5시간", weekly: "주간", daily: "일간", model_group: "모델 그룹", other: "기타" };
+type WindowStats = { requests: number; success_rate: number | null; avg_latency_ms: number | null; tokens_out: number | null };
+type Usage = {
+  provider_id: string;
+  namecraft_usage: { today: WindowStats; "7d": WindowStats; "30d": WindowStats };
+};
+type UsageAlert = { id: string; provider_id: string; message: string; created_at: string };
+type Trend = { series: { ollama?: ChartPoint[] }; unit: string };
 
-export function useDemoToggle() {
-  const [demo, setDemo] = useState(false);
-  return { demo, setDemo, q: demo ? "include_demo=true" : "include_demo=false" };
-}
-
-export function DemoBar({ demo, setDemo, onChange }: { demo: boolean; setDemo: (v: boolean) => void; onChange?: () => void }) {
-  async function load() { await postJson("ai/usage/demo", {}); setDemo(true); onChange?.(); }
-  async function clear() { await apiFetch("ai/usage/demo", { method: "DELETE" }); setDemo(false); onChange?.(); }
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <label className="inline-flex items-center gap-1"><input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> DEMO 포함</label>
-      <Button size="sm" variant="ghost" onClick={load}>DEMO 불러오기</Button>
-      <Button size="sm" variant="ghost" onClick={clear}>DEMO 지우기</Button>
-      {demo && <span className="rounded-md border border-mock px-2 py-0.5 text-mock">◆ DEMO DATA 포함 — 실제 사용량 아님</span>}
-    </div>
-  );
-}
-
-function Stat({ label, v, unit }: { label: string; v: number | null | undefined; unit?: string }) {
-  return <div><dt className="text-xs text-muted-foreground">{label}</dt><dd className="tabular-nums">{v === null || v === undefined ? "확인 불가" : `${v}${unit ?? ""}`}</dd></div>;
+const number = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
+function display(value: number | null | undefined, suffix = "") {
+  return value == null ? "확인 불가" : number.format(value) + suffix;
 }
 
 export function UsageCenter() {
-  const { demo, setDemo, q } = useDemoToggle();
-  const [d, setD] = useState<any>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [form, setForm] = useState({ provider_id: "claude_code", window_type: "rolling_5h", used_pct: "", remaining_text: "", reset_at: "", model_group: "all" });
-  const load = useCallback(async () => {
-    const [s, a] = await Promise.all([apiFetch<any>(`ai/usage/summary?${q}`), apiFetch<any[]>(`ai/alerts?${q}`)]);
-    if (s.ok) setD(s.data); else setMsg(s.error.message);
-    if (a.ok) setAlerts(a.data);
-  }, [q]);
-  useEffect(() => { load(); }, [load]);
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const [trend, setTrend] = useState<Trend | null>(null);
+  const [alerts, setAlerts] = useState<UsageAlert[]>([]);
+  const [error, setError] = useState("");
+  const [trendError, setTrendError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  async function addQuota() {
-    const body: any = { provider_id: form.provider_id, window_type: form.window_type, model_group: form.model_group || "all" };
-    if (form.used_pct) body.used_pct = Number(form.used_pct);
-    if (form.remaining_text) body.remaining_text = form.remaining_text;
-    if (form.reset_at) body.reset_at = new Date(form.reset_at).toISOString();
-    const r = await postJson<any>("ai/usage/quotas", body);
-    setMsg(r.ok ? (r.data.alerts.length ? r.data.alerts.join(" / ") : "저장했습니다.") : r.error.message);
-    load();
-  }
-  if (!d) return <p aria-busy="true" className="text-sm text-muted-foreground">불러오는 중…</p>;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setTrendError("");
+    const [summary, requests, events] = await Promise.all([
+      apiFetch<{ providers: Usage[] }>("ai/usage/summary?provider=ollama"),
+      apiFetch<Trend>("ai/usage/timeseries?metric=requests&days=7"),
+      apiFetch<UsageAlert[]>("ai/alerts"),
+    ]);
+    if (summary.ok) setUsage(summary.data.providers.find((provider) => provider.provider_id === "ollama") ?? null);
+    else setError(summary.error.message);
+    if (requests.ok) setTrend(requests.data);
+    else setTrendError(requests.error.message);
+    if (events.ok) setAlerts(events.data.filter((event) => event.provider_id === "ollama"));
+    setLoading(false);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const stats = usage?.namecraft_usage;
+  const month = stats?.["30d"];
+  const cards = [
+    { label: "최근 24시간", value: display(stats?.today.requests, "건"), icon: Activity, detail: `최근 7일 ${display(stats?.["7d"].requests, "건")}` },
+    { label: "최근 30일 요청", value: display(month?.requests, "건"), icon: Layers, detail: month?.success_rate == null ? "성공률 확인 불가" : `성공률 ${display(month.success_rate * 100, "%")}` },
+    { label: "평균 응답 시간", value: display(month?.avg_latency_ms == null ? null : month.avg_latency_ms / 1000, "초"), icon: Clock3, detail: "최근 30일" },
+    { label: "출력 토큰", value: display(month?.tokens_out), icon: Cpu, detail: "최근 30일 · 모델 보고값" },
+  ];
+
   return (
-    <div className="space-y-4">
-      <DemoBar demo={demo} setDemo={setDemo} onChange={load} />
-      {d.rules.map((r: string) => <p key={r} className="text-xs text-muted-foreground">• {r}</p>)}
-      {msg && <Notice role="status">{msg}</Notice>}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {d.providers.map((p: any) => (
-          <Card key={p.provider_id} className="space-y-3">
-            <div className="flex items-center justify-between"><CardTitle>{p.label}</CardTitle><span className="text-xs">{p.connection.state ?? "확인 불가"}</span></div>
-            <CardDescription>{p.connection.message}</CardDescription>
-            <div>
-              <p className="flex items-center gap-2 text-sm font-medium">NameCraft 내 사용량 <StatusBadge status="local_observed" /></p>
-              <p className="text-xs text-muted-foreground">{p.namecraft_usage.scope}</p>
-              <dl className="mt-1 grid grid-cols-3 gap-2 text-sm">
-                <Stat label="오늘 요청" v={p.namecraft_usage.today.requests} /><Stat label="7일" v={p.namecraft_usage["7d"].requests} /><Stat label="30일" v={p.namecraft_usage["30d"].requests} />
-                <Stat label="성공률(30일)" v={p.namecraft_usage["30d"].success_rate === null ? null : Math.round(p.namecraft_usage["30d"].success_rate * 100)} unit="%" />
-                <Stat label="평균 응답" v={p.namecraft_usage["30d"].avg_latency_ms} unit="ms" />
-                <Stat label="보고된 출력 토큰" v={p.namecraft_usage["30d"].tokens_out} />
-              </dl>
-            </div>
-            <div>
-              <p className="text-sm font-medium">계정 한도</p>
-              {p.quota.status === "not_applicable" ? <p className="text-sm">{p.quota.label} <StatusBadge status="not_supported" /></p>
-                : p.quota.windows.length === 0 ? <p className="text-sm">{p.quota.label} <StatusBadge status="unknown" /></p>
-                : <ul className="space-y-1 text-sm">{p.quota.windows.map((w: any) => (
-                    <li key={w.id} className="flex flex-wrap items-center gap-2">
-                      <span>{W[w.window_type]}{w.model_group !== "all" ? `·${w.model_group}` : ""}</span>
-                      <span className="tabular-nums">{w.used_pct !== null ? `사용 ${w.used_pct}% · 남음 ${w.remaining_pct}%` : w.remaining_text}</span>
-                      {w.reset_in_minutes !== null && <span className="text-xs text-muted-foreground">초기화까지 약 {Math.floor(w.reset_in_minutes / 60)}시간 {w.reset_in_minutes % 60}분</span>}
-                      <StatusBadge status={w.source_kind} /><span className="text-xs text-muted-foreground">입력 {w.observed_at?.slice(5, 16)}</span>
-                    </li>))}</ul>}
-            </div>
-          </Card>
-        ))}
+    <div className="usage-surface space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <span className="text-primary">Ollama</span> <StatusBadge status="local_observed" />
+        </p>
+        <Button variant="outline" size="sm" onClick={() => { void load(); }} disabled={loading}>
+          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" /> 새로고침
+        </Button>
       </div>
-      <Card className="space-y-2">
-        <CardTitle>구독 한도 직접 입력</CardTitle>
-        <CardDescription>Claude Code·Antigravity 의 공식 /usage 화면에 보이는 값을 옮겨 적습니다. 자동 수집은 공식 기계 판독 경로가 없어 하지 않습니다.</CardDescription>
-        <div className="grid gap-2 sm:grid-cols-6 sm:items-end">
-          <Field label="Provider" htmlFor="qp"><Select id="qp" value={form.provider_id} onChange={(e) => setForm((f) => ({ ...f, provider_id: e.target.value }))}>
-            <option value="claude_code">Claude Code</option><option value="antigravity">Antigravity</option></Select></Field>
-          <Field label="구간" htmlFor="qw"><Select id="qw" value={form.window_type} onChange={(e) => setForm((f) => ({ ...f, window_type: e.target.value }))}>
-            {Object.entries(W).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></Field>
-          <Field label="모델 그룹" htmlFor="qm"><Input id="qm" value={form.model_group} onChange={(e) => setForm((f) => ({ ...f, model_group: e.target.value }))} /></Field>
-          <Field label="사용률(%)" htmlFor="qpct"><Input id="qpct" inputMode="decimal" value={form.used_pct} onChange={(e) => setForm((f) => ({ ...f, used_pct: e.target.value }))} /></Field>
-          <Field label="초기화 시각" htmlFor="qr"><Input id="qr" type="datetime-local" value={form.reset_at} onChange={(e) => setForm((f) => ({ ...f, reset_at: e.target.value }))} /></Field>
-          <Button onClick={addQuota} disabled={!form.used_pct && !form.remaining_text}>저장</Button>
-        </div>
-        <Field label="또는 잔여량(화면에 보이는 원본 단위 그대로)" htmlFor="qrt"><Input id="qrt" value={form.remaining_text} onChange={(e) => setForm((f) => ({ ...f, remaining_text: e.target.value }))} /></Field>
-      </Card>
-      <Card><CardTitle>알림</CardTitle>
-        {alerts.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">알림이 없습니다. 공식 사용률이 없는 경우 한도 경고 대신 로컬 요청 증가만 알립니다.</p>
-          : <ul className="mt-2 space-y-1 text-sm">{alerts.map((a) => <li key={a.id}>[{a.level}] {a.message} <StatusBadge status={a.is_demo ? "demo" : a.source_kind} /> <span className="text-xs text-muted-foreground">{a.created_at.slice(5, 16)}</span></li>)}</ul>}</Card>
+      {error && <Notice role="alert" tone="danger">{error}</Notice>}
+      {loading && !usage && <p role="status" className="text-sm text-muted-foreground">사용량을 불러오고 있어요.</p>}
+      {usage && (
+        <>
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {cards.map(({ label, value, icon: Icon, detail }) => (
+              <Card key={label} className="usage-stat min-w-0 space-y-2 p-3 sm:p-4">
+                <dt className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+                  <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" /> {label}
+                </dt>
+                <dd className="break-words text-xl font-semibold tracking-tight tabular-nums sm:text-[2rem]">{value}</dd>
+                <dd className="text-xs text-muted-foreground">{detail}</dd>
+              </Card>
+            ))}
+          </dl>
+
+          <Card className="space-y-4 border-border bg-card">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><CardTitle>최근 7일 요청</CardTitle><CardDescription className="mt-1">이 앱에서 실행한 Ollama 요청을 집계합니다.</CardDescription></div>
+              <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/ai/analytics">모델별 분석</Link>
+            </div>
+            {trendError ? <Notice role="alert" tone="danger">{trendError}</Notice>
+              : trend && <LineChart points={trend.series?.ollama ?? []} unit={trend.unit} label="날짜별 요청 수" variant="bars" />}
+          </Card>
+
+          <Card className="space-y-3">
+            <CardTitle className="flex items-center gap-2"><Bell className="size-4 text-primary" aria-hidden="true" /> 알림</CardTitle>
+            {alerts.length === 0 ? <p className="text-sm text-muted-foreground">로컬 AI 사용량 알림이 없어요.</p>
+              : <ul className="divide-y divide-border text-sm">{alerts.map((event) => (
+                <li key={event.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span>{event.message}</span><time dateTime={event.created_at} className="text-xs text-muted-foreground">{event.created_at.slice(5, 16).replace("T", " ")}</time>
+                </li>
+              ))}</ul>}
+          </Card>
+        </>
+      )}
     </div>
   );
 }

@@ -110,7 +110,7 @@ class FakeOllama:
                 if self.path == "/api/version":
                     self._send({"version": "0.0-fake"})
                 elif self.path == "/api/tags":
-                    self._send({"models": [{"name": m["name"], "details": {"family": m.get("family", "llama")}}
+                    self._send({"models": [{"name": m["name"], "size": m.get("size"), "details": {"family": m.get("family", "llama")}}
                                            for m in fake.models]})
                 else:
                     self._send({}, 404)

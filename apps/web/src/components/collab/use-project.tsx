@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { RankedItem } from "@/lib/types";
 
 export function useCandidates(projectId: string) {
@@ -14,13 +16,19 @@ export function useCandidates(projectId: string) {
 }
 
 export function ProjectNav({ projectId }: { projectId: string }) {
-  const links = [["recommendations", "후보"], ["scenario", "출생 시각"], ["family", "가족 의견"], ["tournament", "1:1 고르기"], ["finalize", "최종 결정"], ["reports", "보고서"]];
+  const path = usePathname();
+  const links = [["recommendations", "이름 후보"], ["scenario", "출생정보·사주"], ["reports", "보고서"]];
   return (
-    <nav aria-label="프로젝트 메뉴" className="-mx-1 flex gap-1 overflow-x-auto rounded-full bg-muted p-1 text-sm">
-      {links.map(([k, l]) => (
-        <Link key={k} className="shrink-0 rounded-full px-3.5 py-1.5 text-muted-foreground transition hover:bg-card hover:text-foreground"
-              href={k === "recommendations" ? `/projects/${projectId}/recommendations` : `/${k}?project=${projectId}`}>{l}</Link>
-      ))}
+    <nav aria-label="프로젝트 메뉴" className="flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1.5 text-sm">
+      {links.map(([key, label]) => {
+        const route = key === "recommendations" ? `/projects/${projectId}/recommendations` : `/${key}`;
+        const current = route === path;
+        return (
+          <Link key={key} aria-current={current ? "page" : undefined}
+                className={cn("rounded-full px-3 py-2 transition", current ? "bg-primary-soft font-semibold text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+                href={key === "recommendations" ? route : `${route}?project=${projectId}`}>{label}</Link>
+        );
+      })}
     </nav>
   );
 }

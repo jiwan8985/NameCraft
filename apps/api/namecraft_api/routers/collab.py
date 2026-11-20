@@ -63,7 +63,7 @@ def scenarios_evaluate(body: ScenarioIn):
                     calculation_assumptions=data["assumptions"])
 
 
-def _birth_data(body: BirthIn) -> dict:
+def birth_data(body: BirthIn) -> dict:
     return {"kind": body.kind, "calendar": body.calendar, "date": body.date.isoformat(),
             "is_leap_month": body.is_leap_month, "time": body.time.strftime("%H:%M") if body.time else None,
             "time_range": [t.strftime("%H:%M") for t in body.time_range] if body.time_range else None,
@@ -74,7 +74,7 @@ def _birth_data(body: BirthIn) -> dict:
 
 @router.post("/projects/{project_id}/birth-profiles", response_model=Envelope[dict[str, Any]], status_code=201)
 def add_birth_profile(project_id: str, body: BirthIn, db: Session = Depends(get_db)):
-    b, snap = cb.add_birth_profile(db, project_id, _birth_data(body))
+    b, snap = cb.add_birth_profile(db, project_id, birth_data(body))
     db.commit()
     warnings = list(SCENARIO_WARNINGS)
     if b.kind == "actual":

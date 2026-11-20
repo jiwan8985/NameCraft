@@ -4,8 +4,8 @@
   "start_url": "/dashboard",
   "display": "standalone",
   "lang": "ko",
-  "background_color": "#fafaff",
-  "theme_color": "#6d6ee0",
+  "background_color": "#f7f8f2",
+  "theme_color": "#24634c",
   "icons": [
     {
       "src": "/icon.svg",
@@ -14,5 +14,5 @@
       "purpose": "any"
     }
   ],
-  "description": "검증 가능한 개인용 작명 플랫폼"
+  "description": "곧 태어날 아기 이름을 찾고 가족과 함께 고르는 개인용 작명 도구"
 }

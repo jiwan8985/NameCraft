@@ -86,6 +86,9 @@ def generate_request_for(session: Session, p: NamingProject, overrides: dict | N
     prefs = {**p.preferences, **(overrides or {})}
     liked, _ = liked_disliked(session, p.id)
     existing = [c.given_hangul for c in candidates(session, p.id)]
+    constraints = {k: p.constraints.get(k, {} if k.startswith("fixed") else []) for k in PROJECT_CONSTRAINT_KEYS}
+    for key in ("fixed_syllable", "fixed_hanja"):
+        constraints[key] = {int(position): value for position, value in constraints[key].items()}
     return GenerateRequest(
         surname_hangul=p.surname_hangul, surname_hanja=p.surname_hanja, sex=p.sex,
         syllables=prefs.get("syllables", 2), name_type=prefs.get("name_type", "hanja"),
@@ -94,7 +97,7 @@ def generate_request_for(session: Session, p: NamingProject, overrides: dict | N
         exclude_names=excluded_names(session, p.id) + existing,  # 이미 저장된 후보·제외 이름은 새로 만들지 않음
         count=prefs.get("count", 30), diversity_threshold=prefs.get("diversity_threshold", 0.8),
         use_traditional=prefs.get("use_traditional", True),
-        **{k: p.constraints.get(k, {} if k.startswith("fixed") else []) for k in PROJECT_CONSTRAINT_KEYS},
+        **constraints,
     )
 
 
