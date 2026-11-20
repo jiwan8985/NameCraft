@@ -1,7 +1,7 @@
 """NameCraft AI 명령어 모음 (Windows/WSL/macOS 공용).
 
 쓰는 법:   namecraft <명령>     (WSL·macOS 에서 처음이면 ./namecraft link 로 어디서나 쓰게 등록)
-           Windows: 폴더의 'NameCraft 시작.cmd' 더블클릭 = 실행 + 브라우저 열기
+           Windows: namecraft.cmd 실행 후 메뉴에서 1번 선택
 메뉴:      namecraft            (번호로 고르기)
 도움말:    namecraft help
 직접 실행: <venv python> scripts/tasks.py <명령>
@@ -397,7 +397,7 @@ def stop() -> int:
 def link() -> int:
     """WSL·macOS·Linux: ~/.local/bin/namecraft 를 만들어 어느 폴더에서나 namecraft 로 실행."""
     if os.name == "nt":
-        print("Windows 에서는 폴더의 'NameCraft 시작.cmd' 를 더블클릭하거나, 이 폴더에서 namecraft <명령> 을 쓰세요.")
+        print("Windows에서는 이 폴더에서 namecraft.cmd를 실행하세요. PowerShell에서는 .\\namecraft.cmd를 사용하세요.")
         return 0
     target = Path.home() / ".local" / "bin" / "namecraft"
     target.parent.mkdir(parents=True, exist_ok=True)

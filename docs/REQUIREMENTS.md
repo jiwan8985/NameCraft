@@ -1,6 +1,6 @@
 # NameCraft AI — 요구사항 명세 (REQUIREMENTS)
 
-> SSOT: `NameCraft_AI_MASTER_PLAN_v2.1.md` (이하 "기획서"). 본 문서는 기획서를 **추적 가능한 요구사항 ID**로 분해한 것이며, 충돌 시 기획서가 우선한다.
+> NameCraft v2.1 기획서의 항목을 추적 가능한 요구사항 ID로 정리한 문서다.
 > 작성: Phase 0 / 2026-11-19
 
 ## 0. 표기 규칙

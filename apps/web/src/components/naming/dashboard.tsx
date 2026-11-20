@@ -86,7 +86,7 @@ export function Dashboard({ desktopQR }: { desktopQR: boolean }) {
             <iframe src="http://127.0.0.1:3001/mobile?embed=1" loading="lazy" title="휴대폰 접속 QR"
                     className="block h-[17.25rem] w-full border-0" />
           ) : (
-            <p className="p-6 text-sm text-muted-foreground">PC에서 NameCraft 시작.cmd 또는 명령 메뉴의 1번으로 실행하면 QR을 볼 수 있어요.</p>
+            <p className="p-6 text-sm text-muted-foreground">PC에서 NameCraft 명령 메뉴의 1번으로 실행하면 QR을 볼 수 있어요.</p>
           )}
           <div className="px-6 pb-5 text-center">
             {desktopQR && <p className="text-sm text-muted-foreground">PC와 같은 Wi-Fi에서 휴대폰 카메라로 찍어 주세요.</p>}
